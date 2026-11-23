@@ -30,3 +30,9 @@ test('kiemTraNoiDung: nhận PDF/Word/Excel, từ chối trang HTML (phiên hế
   assert.throws(() => kiemTraNoiDung(Buffer.from('<!DOCTYPE html>'), 'a.docx'), /phiên/);
   assert.throws(() => kiemTraNoiDung(Buffer.alloc(0), 'a.xlsx'), /rỗng/);
 });
+
+test('voiHanGio: lời gọi treo thì báo TIMEOUT', async () => {
+  const { voiHanGio } = require('../src/ioffice');
+  await assert.rejects(voiHanGio(new Promise(() => {}), 20, 'exec'), /TIMEOUT exec/);
+  assert.strictEqual(await voiHanGio(Promise.resolve(5), 20, 'x'), 5);
+});

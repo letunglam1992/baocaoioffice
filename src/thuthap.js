@@ -36,7 +36,7 @@ function laMatCT(ct) {
   if (coMa && +ct.ma_cap_do_mat !== 1) return true;
   return laMat(ct.ten_cap_do_mat);
 }
-const loiPhien = e => /NOT_READY|NOT_LOGGED_IN|phiên|CHUA_DANG_NHAP/i.test(String(e && e.message || e));
+const loiPhien = e => /NOT_READY|NOT_LOGGED_IN|phiên|CHUA_DANG_NHAP|TIMEOUT/i.test(String(e && e.message || e));
 
 /** Tệp do quetvanban đã lưu: <thư mục>\<Loại>\<số>_<ddmmyyyy>[_vN].pdf — chỉ đọc. */
 function timTepQuetVanBan(root, vb) {
@@ -158,4 +158,4 @@ async function thuThap({ io, kho, taiKhoan, tuNgay, denNgay, gioiHan = {}, tamDi
   return kq;
 }
 
-module.exports = { thuThap, splitFiles, fileName, safeFileBase, fmtDate, laMat, laMatCT };
+module.exports = { thuThap, loiPhien, splitFiles, fileName, safeFileBase, fmtDate, laMat, laMatCT };

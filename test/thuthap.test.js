@@ -130,3 +130,9 @@ test('đếm tệp tải lỗi', async () => {
   assert.strictEqual(r.loiTep, 1);
   assert.strictEqual(r.ok, true);
 });
+
+test('quá thời gian chờ iOffice được coi là lỗi phiên (dừng tài khoản này)', () => {
+  const { loiPhien } = require('../src/thuthap');
+  assert.strictEqual(loiPhien(new Error('TIMEOUT /api/van-ban-den/van-ban-den-chi-tiet')), true);
+  assert.strictEqual(loiPhien(new Error('404')), false);
+});

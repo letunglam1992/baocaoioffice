@@ -131,9 +131,10 @@ class IOffice {
     });
   }
 
-  async exec(fnBody) {
+  async exec(fnBody, ms = 90000) {
     const w = this.ensureWindow();
-    return w.webContents.executeJavaScript(fnBody, true);
+    // trang có thể chuyển hướng (phiên hết hạn) làm mất bộ hẹn giờ trong trang → hẹn giờ ở phía tiến trình chính
+    return voiHanGio(w.webContents.executeJavaScript(fnBody, true), ms, 'exec');
   }
 
   /** Chờ trang sẵn sàng; trả về thông tin cán bộ nếu đã đăng nhập, null nếu chưa. */
@@ -310,7 +311,7 @@ class IOffice {
     await this.throttle();
     this.callCount = (this.callCount || 0) + 1;
     await this.exec(`(${pageBridge.toString()})()`);
-    const r = await this.exec(`window.__iosync.file(${JSON.stringify(path)}, ${JSON.stringify(name || 'file.pdf')})`);
+    const r = await this.exec(`window.__iosync.file(${JSON.stringify(path)}, ${JSON.stringify(name || 'file.pdf')})`, 180000);
     const buf = Buffer.from(r.b64, 'base64');
     kiemTraNoiDung(buf, name);
     return buf;
@@ -332,6 +333,12 @@ function kiemTraNoiDung(buf, name) {
   if (magic && buf.slice(0, magic.length).toString('latin1') !== magic) throw new Error(`Nội dung tải về không đúng định dạng .${ext}`);
 }
 
+/** Promise có hạn giờ: quá ms thì báo lỗi «TIMEOUT …». */
+function voiHanGio(p, ms, ten) {
+  let h;
+  return Promise.race([p, new Promise((_, rej) => { h = setTimeout(() => rej(new Error('TIMEOUT ' + ten)), ms); })]).finally(() => clearTimeout(h));
+}
+
 function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
 
-module.exports = { IOffice, BASE_URL, ALLOWED_APIS, partitionFor, PARTITION_PREFIX, kiemTraNoiDung };
+module.exports = { IOffice, BASE_URL, ALLOWED_APIS, partitionFor, PARTITION_PREFIX, kiemTraNoiDung, voiHanGio };
