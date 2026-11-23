@@ -1,0 +1,91 @@
+'use strict';
+const test = require('node:test');
+const assert = require('node:assert');
+const fs = require('fs');
+const os = require('os');
+const path = require('path');
+const { DieuPhoi } = require('../src/app/dieuphoi');
+const { Kho } = require('../src/kho');
+const { DEFAULTS } = require('../src/constants');
+
+const NOW = Date.UTC(2026, 10, 23, 5, 0); // 12:00 VN 23/11/2026
+function moiTruong(thuThap, o = {}) {
+  const store = { data: { taiKhoan: { a: { ten: 'A' }, b: { ten: 'B', lastOkAt: '01/11/2026' } }, ...(o.data || {}) }, save() { this.luu = (this.luu || 0) + 1; } };
+  const kho = o.kho || new Kho(fs.mkdtempSync(path.join(os.tmpdir(), 'dp-')));
+  const thongBao = [];
+  const dp = new DieuPhoi({ store, kho, taoIo: id => ({ id }), thuThap, now: () => NOW, log: () => {}, thongBao: m => thongBao.push(m), caiDat: () => ({ ...DEFAULTS }), tamDir: fs.mkdtempSync(path.join(os.tmpdir(), 'tam-')), ocrFn: o.ocrFn });
+  return { dp, store, kho, thongBao };
+}
+
+test('một tài khoản lỗi không chặn tài khoản sau; mốc chỉ dời khi đủ', async () => {
+  const goi = [];
+  const { dp, store } = moiTruong(async (o) => {
+    goi.push([o.taiKhoan, o.tuNgay]);
+    if (o.taiKhoan === 'a') throw new Error('hỏng');
+    return { ok: true, moi: 1, hetGioiHan: false, dung: false, loi: [] };
+  });
+  const r = await dp.chayLuot({ lyDo: 'lich' });
+  assert.deepStrictEqual(goi, [['a', '01/01/2025'], ['b', '29/10/2026']]);
+  assert.strictEqual(store.data.taiKhoan.a.lastFailAt, NOW);
+  assert.strictEqual(store.data.taiKhoan.a.lastOkAt, undefined);
+  assert.strictEqual(store.data.taiKhoan.b.lastOkAt, '23/11/2026');
+  assert.ok(r.theoTaiKhoan.b.ok);
+  assert.strictEqual(store.data.lastRunAt, NOW);
+  assert.strictEqual(store.data.lastFailAt, NOW);
+});
+
+test('hết giới hạn hoặc dừng thì không dời mốc', async () => {
+  const { dp, store } = moiTruong(async () => ({ ok: true, hetGioiHan: true, dung: false, loi: [] }));
+  await dp.chayLuot({ lyDo: 'lich' });
+  assert.strictEqual(store.data.taiKhoan.b.lastOkAt, '01/11/2026');
+  assert.strictEqual(store.data.lastFailAt, null);
+});
+
+test('chưa đăng nhập: thông báo, không đặt thử lại', async () => {
+  const { dp, store, thongBao } = moiTruong(async () => ({ ok: false, loi: [{ msg: 'CHUA_DANG_NHAP' }] }));
+  await dp.chayLuot({ lyDo: 'lich' });
+  assert.strictEqual(thongBao.length, 2);
+  assert.match(thongBao[0], /A.*đăng nhập/);
+  assert.strictEqual(store.data.lastFailAt, null);
+});
+
+test('hai lượt song song: lượt sau trả ngay', async () => {
+  let mo;
+  const { dp } = moiTruong(() => new Promise(r => { mo = () => r({ ok: true, loi: [] }); }));
+  const p1 = dp.chayLuot({ lyDo: 'tay' });
+  const r2 = await dp.chayLuot({ lyDo: 'tay' });
+  assert.deepStrictEqual(r2, { dangChay: true });
+  mo(); await new Promise(r => setTimeout(r, 5)); mo(); await p1;
+});
+
+test('layTheoSo: đã có trong kho thì không gọi thu thập', async () => {
+  let goi = 0;
+  const { dp, kho } = moiTruong(async () => { goi++; return { ok: true, loi: [] }; });
+  kho.upsert({ id: 'den:1', chieu: 'den', soKyHieu: '131/KH-UBND', ngayBanHanh: '14/05/2026', coQuan: '', loai: '', trichYeu: '', taiKhoan: ['a'], doMat: false, tep: [], trang: [], capNhat: '' });
+  const r = await dp.layTheoSo('131/kh-ubnd');
+  assert.strictEqual(goi, 0);
+  assert.strictEqual(r[0].id, 'den:1');
+});
+
+test('layTheoSo: chưa có thì chỉ thu thập văn bản khớp số', async () => {
+  const { dp } = moiTruong(async (o) => {
+    const den = await o.io.listVanBanDen('01/01/2025', '23/11/2026');
+    assert.deepStrictEqual(den.map(x => x.so_ky_hieu), ['131/KH-UBND']);
+    return { ok: true, loi: [] };
+  });
+  dp.taoIo = () => ({ listVanBanDen: async () => [{ so_ky_hieu: '131/KH-UBND' }, { so_ky_hieu: '5/CV-X' }], listVanBanDiDaPhatHanh: async () => [] });
+  await dp.layTheoSo('131/KH-UBND');
+});
+
+test('OCR lúc rảnh: tải lại tệp, ghi chữ, đánh dấu đã OCR', async () => {
+  const kho = new Kho(fs.mkdtempSync(path.join(os.tmpdir(), 'dp-')));
+  kho.upsert({ id: 'den:5', chieu: 'den', soKyHieu: '5/CV', ngayBanHanh: '01/02/2026', coQuan: '', loai: '', trichYeu: 'scan', taiKhoan: ['a'], doMat: false, tep: [{ name: 's.pdf', path: 'p/s.pdf', method: 'pdf-text', canOcr: true, ocrDone: false }], trang: [], capNhat: '' });
+  const { dp } = moiTruong(null, { kho, ocrFn: async () => ({ text: 'Trang một chữ OCR\n\f\nTrang hai', method: 'ocr' }) });
+  dp.taoIo = () => ({ downloadFile: async () => Buffer.from('%PDF') });
+  const n = await dp.ocrLucRanh({ gioiHanTrang: 10, soTep: 3 });
+  assert.strictEqual(n, 1);
+  const v = kho.get('den:5');
+  assert.strictEqual(v.tep[0].ocrDone, true);
+  assert.deepStrictEqual(v.trang.map(t => t.so), [1, 2]);
+  assert.strictEqual(kho.canOcr(5).length, 0);
+});
