@@ -34,26 +34,26 @@ const TU_DUNG = new Set(['kết quả', 'thực hiện', 'báo cáo', 'đề ngh
   'nội dung', 'liên quan', 'cụ thể', 'giai đoạn', 'các', 'của', 'và', 'về', 'theo', 'năm', 'được', 'cho', 'với', 'trên',
   'tại', 'đã', 'có', 'là', 'những', 'một', 'này', 'đến', 'từ', 'số', 'ngày', 'trong', 'việc', 'đối', 'như', 'sau', 'khi',
   'nếu', 'gồm', 'đó', 'để', 'hoặc', 'thì', 'mà', 'ra', 'vào', 'lại', 'nhằm']);
-const TU_DUNG_KD = [...TU_DUNG].map(boDau);
 
 /** Từ khóa không dấu: âm tiết (≥ 2 ký tự, không phải số thuần) và cụm hai âm tiết liền nhau, sau khi bỏ từ dừng. */
 function tuKhoa(s) {
-  const doan = boDau(chuanHoa(s).toLowerCase()).split(/[,.;:()\[\]"“”!?\n]+/);
+  // so từ dừng trên chữ CÓ dấu (bỏ dấu trước sẽ làm «đến» trùng «đền», «tại» trùng «tái»), xuất ra chữ không dấu
+  const doan = chuanHoa(s).toLowerCase().split(/[,.;:()\[\]"“”!?\n]+/);
   const out = new Set();
+  const laSo = t => /^[\d.,]+$/.test(t);
   for (const d of doan) {
-    let toks = tachTu(d);
-    // bỏ cụm dừng hai âm tiết trước, rồi một âm tiết
+    const toks = tachTu(d);
     const kept = [];
     for (let i = 0; i < toks.length; i++) {
-      if (i + 1 < toks.length && TU_DUNG_KD.includes(toks[i] + ' ' + toks[i + 1])) { kept.push(null); i++; continue; }
-      kept.push(TU_DUNG_KD.includes(toks[i]) ? null : toks[i]);
+      if (i + 1 < toks.length && TU_DUNG.has(toks[i] + ' ' + toks[i + 1])) { kept.push(null); i++; continue; }
+      kept.push(TU_DUNG.has(toks[i]) ? null : boDau(toks[i]));
     }
     for (let i = 0; i < kept.length; i++) {
       const t = kept[i];
       if (!t) continue;
-      if (t.length >= 2 && !/^[\d.,]+$/.test(t)) out.add(t);
+      if (t.length >= 2 && !laSo(t)) out.add(t);
       const n = kept[i + 1];
-      if (n && !/^[\d.,]+$/.test(t) && !/^[\d.,]+$/.test(n)) out.add(t + ' ' + n);
+      if (n && !laSo(t) && !laSo(n)) out.add(t + ' ' + n);
     }
   }
   return [...out];
