@@ -69,22 +69,31 @@ class DieuPhoi {
     for (const { vb, tepIdx } of this.kho.canOcr(soTep)) {
       if (this.yeuCauDung) break;
       const tep = vb.tep[tepIdx];
+      const datTep = patch => vb.tep.map((t, i) => i === tepIdx ? { ...t, ...patch } : t);
+      // tải: thử lần lượt các tài khoản đã thấy văn bản; lỗi tải/phiên là tạm thời
+      let buf = null, loiTai = '';
+      for (const tk of vb.taiKhoan) {
+        try { buf = await this.taoIo(tk).downloadFile(tep.path, tep.name); break; } catch (e) { loiTai = String(e.message || e); }
+      }
+      if (!buf) {
+        const thu = (tep.ocrThu || 0) + 1;
+        this.log('warn', `OCR ${vb.soKyHieu}: chưa tải được tệp (${loiTai}) — lần ${thu}/5.`);
+        this.kho.upsert({ ...vb, tep: datTep({ ocrThu: thu, ...(thu >= 5 && { ocrDone: true, error: loiTai.slice(0, 200) }) }) });
+        continue;
+      }
       try {
-        const buf = await this.taoIo(vb.taiKhoan[0]).downloadFile(tep.path, tep.name);
         const r = await this.ocrFn(buf, { maxPages: gioiHanTrang });
         const pages = String(r.text || '').split(/\n?\f\n?/);
         const trang = vb.trang.filter(t => t.tep !== tepIdx);
         pages.forEach((text, k) => { if (text.trim()) trang.push({ tep: tepIdx, so: k + 1, text: text.trim() }); });
-        const tepMoi = vb.tep.map((t, i) => i === tepIdx ? { ...t, method: r.method || 'ocr', ocrDone: true } : t);
-        this.kho.upsert({ ...vb, tep: tepMoi, trang });
+        this.kho.upsert({ ...vb, tep: datTep({ method: r.method || 'ocr', ocrDone: true }), trang });
         n++;
-      } catch (e) {
+      } catch (e) { // lỗi đọc nội dung: không thử lại
         this.log('warn', `OCR ${vb.soKyHieu}: ${e.message}`);
-        const tepMoi = vb.tep.map((t, i) => i === tepIdx ? { ...t, ocrDone: true, error: String(e.message || e).slice(0, 200) } : t);
-        this.kho.upsert({ ...vb, tep: tepMoi });
+        this.kho.upsert({ ...vb, tep: datTep({ ocrDone: true, error: String(e.message || e).slice(0, 200) }) });
       }
     }
-    if (n) this.kho.save();
+    this.kho.save();
     return n;
   }
 

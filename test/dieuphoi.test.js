@@ -98,3 +98,35 @@ test('lượt còn văn bản/tệp lỗi thì không dời mốc (để lượt
   await m2.dp.chayLuot({ lyDo: 'lich' });
   assert.strictEqual(m2.store.data.taiKhoan.b.lastOkAt, '01/11/2026');
 });
+
+function khoScan(taiKhoan) {
+  const kho = new Kho(fs.mkdtempSync(path.join(os.tmpdir(), 'dp-')));
+  kho.upsert({ id: 'den:5', chieu: 'den', soKyHieu: '5/CV', ngayBanHanh: '01/02/2026', coQuan: '', loai: '', trichYeu: 'scan', taiKhoan, doMat: false, tep: [{ name: 's.pdf', path: 'p/s.pdf', method: 'pdf-text', canOcr: true, ocrDone: false }], trang: [], capNhat: '' });
+  return kho;
+}
+
+test('OCR: tải lỗi ở tài khoản đầu thì thử tài khoản khác', async () => {
+  const kho = khoScan(['a', 'b']);
+  const { dp } = moiTruong(null, { kho, ocrFn: async () => ({ text: 'Chữ', method: 'ocr' }) });
+  dp.taoIo = id => ({ downloadFile: async () => { if (id === 'a') throw new Error('NOT_READY'); return Buffer.from('%PDF'); } });
+  assert.strictEqual(await dp.ocrLucRanh({}), 1);
+  assert.strictEqual(kho.get('den:5').tep[0].ocrDone, true);
+});
+
+test('OCR: lỗi tạm thời không đánh dấu hỏng ngay; sau 5 lần mới thôi', async () => {
+  const kho = khoScan(['a']);
+  const { dp } = moiTruong(null, { kho, ocrFn: async () => ({ text: 'x' }) });
+  dp.taoIo = () => ({ downloadFile: async () => { throw new Error('Nội dung tải về là trang web (có thể phiên đã hết hạn)'); } });
+  await dp.ocrLucRanh({});
+  assert.strictEqual(kho.get('den:5').tep[0].ocrDone, false);
+  for (let i = 0; i < 4; i++) await dp.ocrLucRanh({});
+  assert.strictEqual(kho.get('den:5').tep[0].ocrDone, true);
+});
+
+test('OCR: lỗi đọc nội dung thì đánh dấu đã xử lý', async () => {
+  const kho = khoScan(['a']);
+  const { dp } = moiTruong(null, { kho, ocrFn: async () => { throw new Error('PDF hỏng'); } });
+  dp.taoIo = () => ({ downloadFile: async () => Buffer.from('%PDF') });
+  await dp.ocrLucRanh({});
+  assert.strictEqual(kho.get('den:5').tep[0].ocrDone, true);
+});
