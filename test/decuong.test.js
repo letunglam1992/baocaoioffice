@@ -73,3 +73,22 @@ test('chủ đề gõ tay và số ký hiệu ghim', () => {
   assert.strictEqual(dc.muc[0].ghim.length, 2);
   assert.deepStrictEqual(dc.vanBanGoc, ['131/KH-UBND', '09-NQ/TU']);
 });
+
+test('mục ba cấp 1.1.1, chữ có dấu chấm a., dòng thân bắt đầu bằng số', () => {
+  const dc = parseDeCuong([P('ĐỀ CƯƠNG'), P('Báo cáo năm 2026'), P('I. MỤC MỘT'), P('1. Mục số'), P('1.1. Mục hai cấp'),
+    P('1.1.1. Mục ba cấp'), P('a. Mục chữ có chấm'), P('1.500 ha đất đã được giao trong năm'), P('2. Mục số hai')]);
+  const m1 = dc.muc[0].con[0];
+  assert.deepStrictEqual(m1.con.map(m => m.so), ['1.1']);
+  const m11 = m1.con[0];
+  assert.deepStrictEqual(m11.con.map(m => [m.so, m.tieuDe]), [['1.1.1', 'Mục ba cấp'], ['a', 'Mục chữ có chấm']]);
+  assert.ok(m11.con[1].moTa.includes('1.500 ha đất đã được giao trong năm'));
+  assert.deepStrictEqual(dc.muc[0].con.map(m => m.so), ['1', '2']);
+});
+
+test('đánh số tự động của Word (numPr) vẫn dựng được cây', () => {
+  const dc = parseDeCuong([P('ĐỀ CƯƠNG'), P('Báo cáo năm 2026'),
+    { type: 'p', text: 'CÔNG TÁC CHỈ ĐẠO', numLvl: 0 }, { type: 'p', text: 'Quán triệt nghị quyết', numLvl: 1 },
+    { type: 'p', text: 'Ban hành văn bản', numLvl: 1 }, { type: 'p', text: 'KẾT QUẢ', numLvl: 0 }]);
+  assert.deepStrictEqual(dc.muc.map(m => m.tieuDe), ['CÔNG TÁC CHỈ ĐẠO', 'KẾT QUẢ']);
+  assert.deepStrictEqual(dc.muc[0].con.map(m => [m.cap, m.tieuDe]), [[2, 'Quán triệt nghị quyết'], [2, 'Ban hành văn bản']]);
+});

@@ -8,13 +8,16 @@ const { chuanHoa, boDau, timSoKyHieu } = require('./vntext');
 
 const DON_VI_MINH = ['Sở Nông nghiệp và Môi trường', 'Nông nghiệp và Môi trường', 'các sở, ngành', 'các sở, ban, ngành', 'các cơ quan, đơn vị', 'các đơn vị'];
 
+// Cấp 2/3/4 dạng số yêu cầu chữ HOA đứng sau (tiêu đề), để dòng thân như «1.500 ha đất…» không bị coi là mục.
 const RE_CAP = [
   [1, /^([IVXLC]+)\s*[.\-–]\s*(?=\S)/],
-  [3, /^(\d+\.\d+)\.?\s*(?=\D)/],
-  [2, /^(\d+)[.)]\s*(?=\D)/],
-  [4, /^([a-zđ])\)\s*/],
+  [4, /^(\d+\.\d{1,2}\.\d{1,2})(?:\.\s*|\s+)(?=\p{Lu})/u],
+  [3, /^(\d+\.\d{1,2})(?:\.\s*|\s+)(?=\p{Lu})/u],
+  [2, /^(\d+)[.)]\s*(?=\p{Lu})/u],
+  [4, /^([a-zđ])[.)]\s+/],
   [5, /^[-–+•]\s*/]
 ];
+const LA_MA = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X', 'XI', 'XII'];
 const RE_PHU_LUC = /^ph[ụu]c? ?l[ụu]c\b/i;
 const laDeNghi = s => /^\(?\s*Đề nghị(?=\s|$)/.test(s);
 
@@ -65,6 +68,7 @@ function parseDeCuong(blocks, { donViMinh = DON_VI_MINH } = {}) {
   let dau = [];          // các đoạn trước mục cấp 1 đầu tiên
   let phuLuc = null;     // mục phụ lục đang mở
   let choTenPhuLuc = false;
+  const demTuDong = [0, 0, 0, 0];
   for (const b of blocks) {
     if (b.type === 'table') {
       const rows = b.rows.map(r => r.map(chuanHoa));
@@ -84,7 +88,13 @@ function parseDeCuong(blocks, { donViMinh = DON_VI_MINH } = {}) {
       if (choTenPhuLuc) { phuLuc.tieuDe = text; choTenPhuLuc = false; } else phuLuc.moTa.push(text);
       continue;
     }
-    const c = capCua(text);
+    let c = capCua(text);
+    if (!c && b.numLvl != null) { // đánh số tự động của Word: chữ không có số, cấp lấy từ ilvl
+      const lv = Math.min(b.numLvl, 3);
+      demTuDong[lv]++; for (let k = lv + 1; k < 4; k++) demTuDong[k] = 0;
+      const so = lv === 0 ? (LA_MA[demTuDong[0] - 1] || String(demTuDong[0])) : lv === 1 ? String(demTuDong[1]) : lv === 2 ? `${demTuDong[1]}.${demTuDong[2]}` : 'abcdeghiklmn'[demTuDong[3] - 1] || '-';
+      c = { cap: lv + 1, so, rest: text };
+    }
     if (!c && !stack.length) { dau.push(text); continue; }
     if (c && c.cap === 5) {
       const m = stack[stack.length - 1];

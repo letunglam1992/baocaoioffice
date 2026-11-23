@@ -68,3 +68,10 @@ test('readAny PDF ít chữ đánh dấu cần OCR', async () => {
   assert.strictEqual(r.canOcr, true);
   assert.deepStrictEqual(r.pages, []);
 });
+
+test('docBlocks ghi cấp đánh số tự động (numPr/ilvl)', async () => {
+  const buf = await taoDocx({ blocks: [{ type: 'p', text: 'Mục tự đánh số', pPr: '<w:pPr><w:numPr><w:ilvl w:val="1"/><w:numId w:val="3"/></w:numPr></w:pPr>' }, { type: 'p', text: 'Thường' }] });
+  const { blocks } = await docBlocks(buf);
+  assert.strictEqual(blocks[0].numLvl, 1);
+  assert.strictEqual(blocks[1].numLvl, undefined);
+});

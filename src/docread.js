@@ -44,12 +44,17 @@ function paraInfo(pXml) {
   const runs = pXml.match(/<w:r\b[\s\S]*?<\/w:r>/g) || [];
   const withText = runs.filter(r => /<w:t[\s>]/.test(r) && runText(r).trim());
   const has = (r, tag) => new RegExp(`<w:${tag}(?:\\s+w:val="(?:true|1|on)")?\\s*/>`).test(r);
-  return {
+  const pPr = (pXml.match(/<w:pPr>[\s\S]*?<\/w:pPr>/) || [''])[0];
+  const numPr = pPr.match(/<w:numPr>([\s\S]*?)<\/w:numPr>/);
+  const numId = numPr && (numPr[1].match(/<w:numId w:val="(\d+)"/) || [])[1];
+  const out = {
     type: 'p',
     text: runText(pXml),
     bold: withText.length > 0 && withText.every(r => has(r, 'b')),
     italic: withText.length > 0 && withText.every(r => has(r, 'i'))
   };
+  if (numId && numId !== '0') out.numLvl = +((numPr[1].match(/<w:ilvl w:val="(\d+)"/) || [])[1] || 0);
+  return out;
 }
 
 function tableRows(tblXml) {
