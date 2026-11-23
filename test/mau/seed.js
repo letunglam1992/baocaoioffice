@@ -29,7 +29,7 @@ const { blocksDeCuong } = require('./decuong-gia');
   store.log('info', 'Dữ liệu mẫu cho xem giao diện.');
   const p = new PhienBaoCao({ store, kho });
   await p.napDeCuong(await taoDocx({ blocks: blocksDeCuong() }), 'de-cuong-mau.docx');
-  p.phanTich();
+  await p.phanTich();
   store.save();
   console.log('Đã tạo dữ liệu mẫu tại', dir);
 })();

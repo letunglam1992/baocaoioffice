@@ -69,12 +69,10 @@ function giuTepGoc(khoDir, tenGoc, buf, { tranMB }) {
   for (const x of ds) { if (tong <= tran || x.f === p) continue; fs.unlinkSync(x.f); tong -= x.size; }
 }
 
-async function thuThap({ io, kho, taiKhoan, tuNgay, denNgay, gioiHan = {}, tamDir, thuMucQuetVanBan, giuTep, nenDung = () => false, onTienDo = () => {}, log = () => {} }) {
-  const kq = { ok: true, moi: 0, capNhat: 0, tep: 0, loiTep: 0, loi: [], hetGioiHan: false, dung: false };
-  const maxCalls = gioiHan.maxCalls || 300, maxFiles = gioiHan.maxFiles || 100;
-  let calls = 0;
-  const dem = () => { calls++; };
-  const het = () => calls >= maxCalls || kq.tep >= maxFiles;
+async function thuThap(o) {
+  const { io, kho, taiKhoan, tuNgay, denNgay, gioiHan = {}, tamDir, chiDanhSach = false } = o;
+  const kq = taoKq();
+  const { dem, het } = boDem(kq, gioiHan);
 
   const me = await io.whoAmI().catch(() => null);
   if (!me) return { ...kq, ok: false, loi: [{ so: '', msg: 'CHUA_DANG_NHAP' }] };
@@ -94,12 +92,63 @@ async function thuThap({ io, kho, taiKhoan, tuNgay, denNgay, gioiHan = {}, tamDi
   } catch (e) {
     return { ...kq, ok: false, loi: [{ so: '', msg: String(e.message || e) }] };
   }
+  if (chiDanhSach) return luuDanhSach(ds, kho, taiKhoan, kq);
+  ds = ds.filter(d => !daXong(kho, d.id));
   // văn bản CHƯA có trong kho trước (mới nhất trước), văn bản cần thử lại tệp lỗi sau — một văn bản lỗi không chặn cả lượt
-  const tepXong = t => t.method && (!t.loiTai || soLanThu(t) >= MAX_THU);
-  const daXong = id => { const v = kho.get(id); return v && (v.doMat || (v.tep || []).every(tepXong)); };
-  ds = ds.filter(d => !daXong(d.id));
   ds.sort((a, b) => (kho.has(a.id) - kho.has(b.id)) || (b.ngay - a.ngay));
+  return xuLyDs(ds, { ...o, kq, dem, het });
+}
 
+const taoKq = () => ({ ok: true, moi: 0, capNhat: 0, tep: 0, loiTep: 0, loi: [], hetGioiHan: false, dung: false });
+function boDem(kq, gioiHan = {}) {
+  const maxCalls = gioiHan.maxCalls || 300, maxFiles = gioiHan.maxFiles || 100;
+  let calls = 0;
+  return { dem: () => { calls++; }, het: () => calls >= maxCalls || kq.tep >= maxFiles };
+}
+const tepXong = t => t.method && (!t.loiTai || soLanThu(t) >= MAX_THU);
+/** Đã có đủ nội dung (hoặc là văn bản mật)? Văn bản mới chỉ có danh sách thì chưa. */
+const daXong = (kho, id) => { const v = kho.get(id); return !!v && !v.chuaChiTiet && (v.doMat || (v.tep || []).every(tepXong)); };
+/** Mã cần để gọi chi tiết văn bản sau này. */
+const rutGon = x => { const o = {}; for (const k of ['ma_van_ban_den_kc', 'ma_xu_ly_den', 'ma_van_ban_di_kc']) if (x[k] != null) o[k] = x[k]; return o; };
+
+/** Quét nền 0.2.0: chỉ lưu số ký hiệu, ngày, cơ quan, trích yếu + mã văn bản; không gọi chi tiết, không tải tệp. */
+function luuDanhSach(ds, kho, taiKhoan, kq) {
+  for (const d of ds) {
+    const cu = kho.get(d.id);
+    if (cu) {
+      if (!cu.taiKhoan.includes(taiKhoan)) { kho.upsert({ ...cu, taiKhoan: [taiKhoan] }); kq.capNhat++; }
+      continue;
+    }
+    const x = d.x;
+    kho.upsert({
+      id: d.id, chieu: d.chieu, soKyHieu: x.so_ky_hieu || '',
+      ngayBanHanh: fmtDate(x.ngay_ban_hanh || (d.chieu === 'di' ? x.ngay_di : (x.ngay_nhan || x.ngay_den))),
+      coQuan: x.ten_co_quan_ban_hanh || (d.chieu === 'di' ? 'Sở Nông nghiệp và Môi trường' : ''),
+      loai: x.ten_loai_van_ban || '', trichYeu: x.trich_yeu || '',
+      taiKhoan: [taiKhoan], doMat: false, tep: [], trang: [], chuaChiTiet: true, nguon: rutGon(x), capNhat: new Date().toISOString()
+    });
+    kq.moi++;
+  }
+  kho.save();
+  return kq;
+}
+
+/** Tải chi tiết + tệp cho các văn bản được chọn (đã có trong kho từ danh sách). */
+async function layChiTiet(o) {
+  const { io, kho, ids } = o;
+  const kq = taoKq();
+  const { dem, het } = boDem(kq, o.gioiHan);
+  const me = await io.whoAmI().catch(() => null);
+  if (!me) return { ...kq, ok: false, loi: [{ so: '', msg: 'CHUA_DANG_NHAP' }] };
+  fs.mkdirSync(o.tamDir, { recursive: true });
+  const ds = ids.map(id => kho.get(id)).filter(v => v && v.nguon && !daXong(kho, v.id)).map(v => ({
+    id: v.id, chieu: v.chieu, ngay: parseNgay(v.ngayBanHanh) || 0,
+    x: { ...v.nguon, so_ky_hieu: v.soKyHieu, trich_yeu: v.trichYeu, ngay_ban_hanh: v.ngayBanHanh, ten_co_quan_ban_hanh: v.coQuan, ten_loai_van_ban: v.loai }
+  }));
+  return xuLyDs(ds, { ...o, kq, dem, het });
+}
+
+async function xuLyDs(ds, { io, kho, taiKhoan, tamDir, thuMucQuetVanBan, giuTep, gioiHan = {}, kq, dem, het, nenDung = () => false, onTienDo = () => {}, log = () => {} }) {
   /** Lỗi có phải do mất phiên? TIMEOUT thì hỏi lại trang: còn đăng nhập → chỉ là lỗi của tệp/văn bản này. */
   const matPhien = async e => {
     if (loiPhien(e)) return true;
@@ -125,7 +174,7 @@ async function thuThap({ io, kho, taiKhoan, tuNgay, denNgay, gioiHan = {}, tamDi
         coQuan: c.ten_co_quan_ban_hanh || d.x.ten_co_quan_ban_hanh || (d.chieu === 'di' ? 'Sở Nông nghiệp và Môi trường' : ''),
         loai: c.ten_loai_van_ban || d.x.ten_loai_van_ban || '',
         trichYeu: c.trich_yeu || d.x.trich_yeu || '',
-        taiKhoan: [taiKhoan], doMat: laMatCT(ct), tep: [], trang: [], capNhat: new Date().toISOString()
+        taiKhoan: [taiKhoan], doMat: laMatCT(ct), tep: [], trang: [], nguon: rutGon(d.x), capNhat: new Date().toISOString()
       };
       onTienDo({ buoc: 'van-ban', da: i, tong: ds.length, so: vb.soKyHieu });
       if (!vb.doMat) {
@@ -193,4 +242,4 @@ async function thuThap({ io, kho, taiKhoan, tuNgay, denNgay, gioiHan = {}, tamDi
   return kq;
 }
 
-module.exports = { thuThap, loiPhien, splitFiles, fileName, safeFileBase, fmtDate, laMat, laMatCT };
+module.exports = { thuThap, layChiTiet, loiPhien, splitFiles, fileName, safeFileBase, fmtDate, laMat, laMatCT };

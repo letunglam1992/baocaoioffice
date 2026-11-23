@@ -4,14 +4,14 @@
  * Thuần Node (Electron tiêm vào qua taoIo) để kiểm thử được.
  */
 const { khoangLuot } = require('../lich');
-const { thuThap: thuThapMacDinh } = require('../thuthap');
+const { thuThap: thuThapMacDinh, layChiTiet: layChiTietMacDinh } = require('../thuthap');
 const { boDau } = require('../vntext');
 
 const chuanSo = s => boDau(String(s || '')).toLowerCase().replace(/\s+/g, '');
 
 class DieuPhoi {
-  constructor({ store, kho, taoIo, thuThap = thuThapMacDinh, now = Date.now, log = () => {}, thongBao = () => {}, caiDat, tamDir, ocrFn, onTienDo = () => {} }) {
-    Object.assign(this, { store, kho, taoIo, thuThap, now, log, thongBao, caiDat, tamDir, ocrFn, onTienDo });
+  constructor({ store, kho, taoIo, thuThap = thuThapMacDinh, layChiTiet = layChiTietMacDinh, now = Date.now, log = () => {}, thongBao = () => {}, caiDat, tamDir, ocrFn, onTienDo = () => {} }) {
+    Object.assign(this, { store, kho, taoIo, thuThap, layChiTiet, now, log, thongBao, caiDat, tamDir, ocrFn, onTienDo });
     this.dangChay = false;
     this.yeuCauDung = false;
   }
@@ -34,7 +34,7 @@ class DieuPhoi {
         let r;
         try {
           r = await this.thuThap({
-            io: this.taoIo(id), kho: this.kho, taiKhoan: id, ...kl,
+            io: this.taoIo(id), kho: this.kho, taiKhoan: id, ...kl, chiDanhSach: true,
             gioiHan: { maxCalls: S.maxCalls, maxFiles: S.maxFiles, maxMB: S.maxMB }, tamDir: this.tamDir,
             thuMucQuetVanBan: S.thuMucQuetVanBan, giuTep: (S.giuTep && S.giuTep.loai && S.giuTep.loai.length) ? S.giuTep : null,
             nenDung: () => this.yeuCauDung, onTienDo: e => this.onTienDo({ ...e, taiKhoan: tk.ten || id }), log: this.log
@@ -64,6 +64,58 @@ class DieuPhoi {
       this.dangChay = false;
     }
     return { theoTaiKhoan };
+  }
+
+  /** Chờ lượt quét nền dừng (tối đa ~60 giây) để dùng iOffice cho việc người dùng đang làm. */
+  async choRanh() {
+    if (!this.dangChay) return;
+    this.dung();
+    for (let k = 0; k < 120 && this.dangChay; k++) await new Promise(r => setTimeout(r, 500));
+    if (this.dangChay) throw new Error('Đang quét nền — vui lòng thử lại sau ít phút.');
+  }
+
+  /**
+   * 0.2.0: tải chi tiết + tệp cho các văn bản được chọn khi phân tích báo cáo.
+   * Mỗi văn bản thử lần lượt các tài khoản đã thấy nó (tài khoản chưa đăng nhập thì chuyển sang tài khoản khác).
+   */
+  async layNoiDung(ids) {
+    await this.choRanh();
+    this.dangChay = true; this.yeuCauDung = false;
+    const S = this.caiDat();
+    const daThu = new Map(ids.map(id => [id, new Set()]));
+    let con = ids.slice(), daTai = 0, coOk = false;
+    const loi = [];
+    try {
+      while (con.length && !this.yeuCauDung) {
+        const nhom = new Map();
+        for (const id of con) {
+          const v = this.kho.get(id);
+          const tk = v && v.taiKhoan.find(t => !daThu.get(id).has(t) && this.store.data.taiKhoan[t]);
+          if (!tk) continue;
+          if (!nhom.has(tk)) nhom.set(tk, []);
+          nhom.get(tk).push(id);
+        }
+        if (!nhom.size) break;
+        const conLai = [];
+        for (const [tk, ds] of nhom) {
+          ds.forEach(id => daThu.get(id).add(tk));
+          const r = await this.layChiTiet({
+            io: this.taoIo(tk), kho: this.kho, ids: ds, taiKhoan: tk, tamDir: this.tamDir,
+            thuMucQuetVanBan: S.thuMucQuetVanBan, giuTep: (S.giuTep && S.giuTep.loai && S.giuTep.loai.length) ? S.giuTep : null,
+            gioiHan: { maxCalls: 100000, maxFiles: 100000, maxMB: S.maxMB },
+            nenDung: () => this.yeuCauDung, onTienDo: e => this.onTienDo({ ...e, taiKhoan: (this.store.data.taiKhoan[tk] || {}).ten || tk, lamBaoCao: true }), log: this.log
+          });
+          daTai += r.tep || 0;
+          if (r.ok) coOk = true; else { loi.push(...(r.loi || [])); conLai.push(...ds); }
+        }
+        con = conLai;
+      }
+    } finally {
+      this.kho.save();
+      this.dangChay = false;
+    }
+    this.log('info', `Tải nội dung cho báo cáo: ${ids.length - con.length}/${ids.length} văn bản, ${daTai} tệp.`);
+    return { ok: coOk || !ids.length, daTai, soVanBan: ids.length - con.length, loi };
   }
 
   async ocrLucRanh({ gioiHanTrang = 10, soTep = 3 } = {}) {
@@ -102,7 +154,11 @@ class DieuPhoi {
 
   async layTheoSo(soKyHieu) {
     const co = this.kho.timTheoSo(soKyHieu);
-    if (co.length) return co;
+    if (co.length) {
+      const can = co.filter(v => v.chuaChiTiet && !v.doMat).map(v => v.id);
+      if (can.length) await this.layNoiDung(can);
+      return this.kho.timTheoSo(soKyHieu);
+    }
     if (this.dangChay) throw new Error('Đang quét nền — chờ lượt quét xong hoặc bấm Dừng rồi thử lại.');
     this.dangChay = true;
     try { return await this.layTheoSoNoi(soKyHieu); } finally { this.dangChay = false; }

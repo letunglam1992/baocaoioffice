@@ -159,3 +159,34 @@ test('tình trạng lỗi của tài khoản là lỗi làm dừng lượt (lỗ
   await dp.chayLuot({ lyDo: 'lich' });
   assert.strictEqual(store.data.taiKhoan.a.loi, 'NOT_READY');
 });
+
+test('quét nền chỉ lấy danh sách (chiDanhSach)', async () => {
+  let o = null;
+  const { dp } = moiTruong(async x => { o = x; return { ok: true, loi: [] }; });
+  await dp.chayLuot({ lyDo: 'lich' });
+  assert.strictEqual(o.chiDanhSach, true);
+});
+
+test('layNoiDung: chia văn bản theo tài khoản, thử tài khoản khác nếu chưa đăng nhập', async () => {
+  const kho = new Kho(fs.mkdtempSync(path.join(os.tmpdir(), 'dp-')));
+  const vb = (id, tk) => kho.upsert({ id, chieu: 'den', soKyHieu: id, ngayBanHanh: '01/02/2026', coQuan: '', loai: '', trichYeu: 'x', taiKhoan: tk, doMat: false, tep: [], trang: [], chuaChiTiet: true, nguon: {}, capNhat: '' });
+  vb('den:1', ['a']); vb('den:2', ['b', 'a']);
+  const goi = [];
+  const { dp } = moiTruong(null, { kho });
+  dp.layChiTiet = async o => { goi.push([o.taiKhoan, o.ids]); return o.taiKhoan === 'b' ? { ok: false, loi: [{ msg: 'CHUA_DANG_NHAP' }], tep: 0 } : { ok: true, loi: [], tep: o.ids.length }; };
+  const r = await dp.layNoiDung(['den:1', 'den:2']);
+  assert.deepStrictEqual(goi, [['a', ['den:1']], ['b', ['den:2']], ['a', ['den:2']]]);
+  assert.strictEqual(r.ok, true);
+  assert.strictEqual(dp.dangChay, false);
+});
+
+test('layTheoSo: văn bản mới có trong danh sách thì tải luôn nội dung', async () => {
+  const kho = new Kho(fs.mkdtempSync(path.join(os.tmpdir(), 'dp-')));
+  kho.upsert({ id: 'den:1', chieu: 'den', soKyHieu: '131/KH-UBND', ngayBanHanh: '14/05/2026', coQuan: '', loai: '', trichYeu: 'x', taiKhoan: ['a'], doMat: false, tep: [], trang: [], chuaChiTiet: true, nguon: { ma_van_ban_den_kc: 1 }, capNhat: '' });
+  const { dp } = moiTruong(null, { kho });
+  let goi = null;
+  dp.layChiTiet = async o => { goi = o.ids; kho.upsert({ ...kho.get('den:1'), chuaChiTiet: false }); return { ok: true, loi: [], tep: 1 }; };
+  const r = await dp.layTheoSo('131/KH-UBND');
+  assert.deepStrictEqual(goi, ['den:1']);
+  assert.ok(!r[0].chuaChiTiet);
+});

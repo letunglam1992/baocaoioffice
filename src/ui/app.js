@@ -20,6 +20,6 @@ ganTabBaoCao(); ganTabDeCuong(); ganTabKho(); ganTabCaiDat();
 bc.onTrangThai(capNhat);
 bc.onTienDo(p => {
   const el = $('#tienDo'); el.hidden = false;
-  el.textContent = `Đang quét ${p.taiKhoan || ''}: văn bản ${p.da + 1}/${p.tong}${p.so ? ' — ' + p.so : ''}${p.tep ? ` · tệp ${p.tepThu}/${p.tepTong}: ${p.tep}` : ''}`;
+  el.textContent = `${p.lamBaoCao ? 'Đang tải văn bản cho báo cáo' : 'Đang quét danh sách'} (${p.taiKhoan || ''}): văn bản ${p.da + 1}/${p.tong}${p.so ? ' — ' + p.so : ''}${p.tep ? ` · tệp ${p.tepThu}/${p.tepTong}: ${p.tep}` : ''}`;
 });
 bc.trangThai().then(x => { if (x && x.ok) capNhat(x.r); });

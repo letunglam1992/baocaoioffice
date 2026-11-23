@@ -9,6 +9,8 @@ const DEFAULTS = Object.freeze({
   thuLaiPhut: 30,
   quetTiepPhut: 15,
   maxMB: 30,
+  moiMuc: 15,
+  toiDaBaoCao: 150,
   tuNgayDau: '01/01/2025',
   maxCalls: 300,
   maxFiles: 100,

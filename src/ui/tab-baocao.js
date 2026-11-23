@@ -18,9 +18,14 @@ function ganTabBaoCao() {
     if (!t) { toast('Nhập ít nhất một chủ đề.', { tone: 'err' }); $('#chuDe').focus(); return; }
     if (await goi(bc.baoCao.napChuDe, t, $('#soGhim').value)) toast('Đã tạo đề cương từ chủ đề. Bấm «Phân tích».');
   };
-  const phanTich = btn => ban(btn, 'Đang phân tích…', async () => {
+  const phanTich = btn => ban(btn, 'Đang tải văn bản liên quan…', async () => {
     const patch = { tuNgay: $('#tuNgay').value.trim(), denNgay: $('#denNgay').value.trim(), kinhGui: $('#kinhGui').value.trim(), trichYeu: $('#trichYeu').value.trim(), moDau: $('#moDau').value.trim() };
-    if (await goi(bc.baoCao.phanTich, patch)) { toast('Đã phân tích xong.'); goTab('decuong'); }
+    const kq = await goi(bc.baoCao.phanTich, patch);
+    if (kq) {
+      const t = kq.lanTai;
+      toast(t && t.canTai ? `Đã tải nội dung ${t.soVanBan || 0}/${t.canTai} văn bản liên quan (${t.daTai || 0} tệp) và phân tích xong.` : 'Đã phân tích xong (không có văn bản mới cần tải).');
+      goTab('decuong');
+    }
   });
   $('#btnPhanTich').onclick = e => phanTich(e.currentTarget);
   $('#btnPhanTich2').onclick = e => phanTich(e.currentTarget);

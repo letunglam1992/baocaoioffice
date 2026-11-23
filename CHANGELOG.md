@@ -1,5 +1,10 @@
 # Nhật ký thay đổi
 
+## 0.2.0
+- Chỉ tải văn bản liên quan (thiết kế §8): quét nền `chiDanhSach` — lưu số, ngày, cơ quan, trích yếu, mã văn bản; không gọi chi tiết, không tải tệp.
+- «Phân tích»: `chonVanBanCanTai` chọn theo trích yếu (≥ 1 cụm hai âm tiết hoặc ≥ 2 từ khóa), ghim số ký hiệu, văn bản viện dẫn văn bản gốc, trong kỳ báo cáo; tối đa `moiMuc` (15) / `toiDaBaoCao` (150); `DieuPhoi.layNoiDung` tự tải chi tiết + tệp (thử lần lượt các tài khoản đã thấy văn bản), rồi trích đoạn.
+- `layTheoSo`, «Mở văn bản gốc» tự tải nội dung văn bản mới có trong danh sách; thống kê kho thêm `coNoiDung`; cài đặt thay «tối đa tệp/lượt» bằng «văn bản tối đa mỗi mục / mỗi báo cáo».
+
 ## 0.1.2
 - Sửa lỗi 0.1.1: hàm tải tệp trong trang iOffice dùng biến `r` ngoài phạm vi khối `try` → mọi tệp tải hỏng («r is not defined»). Thêm kiểm thử chạy cầu nối trong trang với trang iOffice giả lập (`test/pagebridge.test.js`).
 - Tệp lỗi do lỗi phần mềm (`is not defined`, `is not a function`, `Cannot read prop…`) không tính vào giới hạn 3 lần thử, luôn được tải lại.

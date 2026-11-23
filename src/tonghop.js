@@ -109,4 +109,44 @@ function danhMucVanBan(dc, kho, { tuNgay, denNgay, coQuan } = {}) {
   return out.sort((x, y) => x.n - y.n).map(({ n, ...r }) => r);
 }
 
-module.exports = { truyVanMuc, tongHopMuc, tongHop, danhMucVanBan, catDoan, tuKhoaMuc };
+/** Các mục dùng để chọn văn bản: giống tongHop (mục đang bật; lá, hoặc có mô tả/ghim). */
+function cacMucTinh(dc) {
+  const out = [];
+  const di = ds => ds.forEach(m => { if (!m.bat) return; if (!m.con.length || m.moTa.length || m.ghim.length) out.push(m); di(m.con); });
+  di(dc.muc);
+  return out;
+}
+
+/**
+ * 0.2.0 — chọn văn bản cần tải nội dung cho báo cáo, theo TRÍCH YẾU (kho chỉ có danh sách):
+ * văn bản ghim (số ký hiệu) → văn bản có trích yếu viện dẫn văn bản gốc → mỗi mục tối đa `moiMuc` văn bản khớp
+ * trích yếu (≥ 1 cụm hai âm tiết hoặc ≥ 2 từ khóa), trong kỳ báo cáo. Trả về id văn bản CHƯA có nội dung, tối đa `toiDa`.
+ */
+function chonVanBanCanTai(dc, kho, { tuNgay, denNgay, moiMuc = 15, toiDa = 150 } = {}) {
+  const a = parseNgay(tuNgay), b = parseNgay(denNgay);
+  const trongKy = v => { const n = parseNgay(v.ngayBanHanh); return !n || ((!a || n >= a) && (!b || n <= b)); };
+  const chon = [];
+  const them = v => { if (v && !chon.includes(v.id)) chon.push(v.id); };
+  const mucs = cacMucTinh(dc);
+  for (const m of mucs) for (const so of m.ghim || []) kho.timTheoSo(so).forEach(them);
+  const goc = (dc.vanBanGoc || []).map(kd);
+  if (goc.length) {
+    for (const [id, v] of kho.meta) {
+      if (goc.includes(kd(v.soKyHieu)) || !trongKy(v)) continue;
+      if (goc.some(g => kd(v.trichYeu).includes(g))) them(v);
+    }
+  }
+  for (const m of mucs) {
+    const kw = tuKhoaMuc(m);
+    const q = truyVanMuc(m);
+    if (!q) continue;
+    const kq = kho.tim(q, { tuNgay, denNgay, limit: moiMuc * 6 })
+      .filter(r => diemDoan(kd(r.vb.trichYeu), kw) >= 2)
+      .slice(0, moiMuc);
+    kq.forEach(r => them(r.vb));
+  }
+  const canNoiDung = id => { const v = kho.meta.get(id); return v && !v.doMat && (v.chuaChiTiet || (v.tep || []).some(t => t.loiTai)); };
+  return chon.filter(canNoiDung).slice(0, toiDa);
+}
+
+module.exports = { truyVanMuc, tongHopMuc, tongHop, danhMucVanBan, catDoan, tuKhoaMuc, chonVanBanCanTai };

@@ -7,7 +7,7 @@ const fs = require('fs');
 const path = require('path');
 const { readAny } = require('../docread');
 const { parseDeCuong, parseChuDe } = require('../decuong');
-const { tongHop, danhMucVanBan } = require('../tonghop');
+const { tongHop, danhMucVanBan, chonVanBanCanTai } = require('../tonghop');
 const { docKhung, xuatBaoCao, xuatDuLieuTho, xuatDuLieuThoDocx } = require('../xuatword');
 const { boDau } = require('../vntext');
 
@@ -76,8 +76,16 @@ class PhienBaoCao {
     this.store.save();
   }
 
-  phanTich() {
+  /**
+   * 0.2.0: trước khi trích đoạn, chọn văn bản liên quan theo trích yếu và TỰ TẢI nội dung (o.layNoiDung(ids)).
+   * Không truyền layNoiDung (kiểm thử, ngoại tuyến) → chỉ dùng nội dung đã có trong kho.
+   */
+  async phanTich(o = {}) {
     const bc = this.bc;
+    if (o.layNoiDung) {
+      const ids = chonVanBanCanTai(bc.dc, this.kho, { tuNgay: bc.tuNgay, denNgay: bc.denNgay, moiMuc: o.moiMuc, toiDa: o.toiDa });
+      bc.lanTai = ids.length ? { canTai: ids.length, ...(await o.layNoiDung(ids)) } : { canTai: 0, daTai: 0, ok: true };
+    }
     const ketQua = tongHop(bc.dc, this.kho, { tuNgay: bc.tuNgay, denNgay: bc.denNgay });
     const bo = new Set(bc.boChon);
     for (const kq of Object.values(ketQua)) for (const t of kq.trichDoan) if (bo.has(khoaTrich(t))) t.chon = false;

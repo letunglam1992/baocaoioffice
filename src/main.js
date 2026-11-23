@@ -138,7 +138,8 @@ function dangKyIpc() {
   h('kho.tim', (q, o) => kho.tim(q, o || {}).map(({ vb, score }) => ({ score, id: vb.id, chieu: vb.chieu, soKyHieu: vb.soKyHieu, ngay: vb.ngayBanHanh, coQuan: vb.coQuan, trichYeu: vb.trichYeu, taiKhoan: vb.taiKhoan })));
   h('kho.layTheoSo', so => dp.layTheoSo(so).then(ds => ds.map(v => ({ id: v.id, soKyHieu: v.soKyHieu, ngay: v.ngayBanHanh, trichYeu: v.trichYeu }))));
   h('kho.moGoc', async id => {
-    const v = kho.get(id); if (!v) throw new Error('Không thấy văn bản trong kho.');
+    let v = kho.get(id); if (!v) throw new Error('Không thấy văn bản trong kho.');
+    if (v.chuaChiTiet && !v.doMat) { await dp.layNoiDung([id]); v = kho.get(id); }
     if (v.doMat) throw new Error('Văn bản có độ mật — không tải tự động.');
     const tep = v.tep.find(t => /\.pdf$/i.test(t.name)) || v.tep[0];
     if (!tep) throw new Error('Văn bản không có tệp.');
@@ -154,7 +155,14 @@ function dangKyIpc() {
   h('baoCao.napDeCuong', p => phien.napDeCuong(fs.readFileSync(p), p));
   h('baoCao.napBieuMau', (p, mucId) => phien.napBieuMau(fs.readFileSync(p), p, mucId));
   h('baoCao.napChuDe', (text, so) => phien.napChuDe(text, so));
-  h('baoCao.phanTich', patch => { if (patch) phien.capNhatPhien(patch); return phien.phanTich(); });
+  h('baoCao.phanTich', async patch => {
+    if (patch) phien.capNhatPhien(patch);
+    const S = store.data.caiDat;
+    // 0.2.0: tự tải nội dung các văn bản liên quan (theo trích yếu) rồi mới trích đoạn
+    const bc = await phien.phanTich({ layNoiDung: ids => dp.layNoiDung(ids), moiMuc: S.moiMuc, toiDa: S.toiDaBaoCao });
+    push();
+    return bc;
+  });
   h('baoCao.capNhatMuc', (id, patch) => phien.capNhatMuc(id, patch));
   h('baoCao.chonTrich', (mucId, n, chon) => phien.chonTrich(mucId, n, chon));
   h('baoCao.tinhChinh', async mucId => {

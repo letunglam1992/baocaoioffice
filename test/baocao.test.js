@@ -35,14 +35,14 @@ test('nạp đề cương: kỳ báo cáo mặc định theo năm đề cương'
 
 test('phân tích lại giữ lựa chọn bỏ chọn trích đoạn và bật/tắt mục', async () => {
   const { p, store } = await phien();
-  p.phanTich();
+  await p.phanTich();
   const m = tim(store.data.baoCao.dc.muc, '2.3');
   const kq = store.data.baoCao.ketQua[m.id];
   assert.ok(kq.trichDoan.length >= 1);
   p.chonTrich(m.id, kq.trichDoan[0].n, false);
   const m14 = tim(store.data.baoCao.dc.muc, '1.4');
   p.capNhatMuc(m14.id, { bat: true, tuKhoaThem: ['FDI'] });
-  p.phanTich();
+  await p.phanTich();
   const kq2 = store.data.baoCao.ketQua[m.id];
   assert.strictEqual(kq2.trichDoan.find(t => t.text === kq.trichDoan[0].text).chon, false);
   assert.strictEqual(tim(store.data.baoCao.dc.muc, '1.4').bat, true);
@@ -61,7 +61,7 @@ test('nạp biểu mẫu Excel thành mục bảng số liệu', async () => {
 
 test('xuất ra hai tệp Word và một tệp Markdown', async () => {
   const { p } = await phien();
-  p.phanTich();
+  await p.phanTich();
   const khung = fs.readFileSync(path.join(__dirname, '..', 'assets', 'khung-bao-cao.docx'));
   const dir = tmp();
   const r = await p.xuat({ khungBuf: khung, thuMuc: dir, kinhGui: 'Sở Tài chính' });
@@ -75,7 +75,25 @@ test('chủ đề gõ tay', async () => {
   const store = { data: {}, save() {} };
   const p = new PhienBaoCao({ store, kho: khoMau() });
   p.napChuDe('Giải phóng mặt bằng năm 2026', '1410/TTr-SNNMT');
-  p.phanTich();
+  await p.phanTich();
   const m = store.data.baoCao.dc.muc[0];
   assert.strictEqual(store.data.baoCao.ketQua[m.id].vanBan[0].id, 'di:3');
+});
+
+test('phân tích: chọn văn bản cần tải, gọi hàm tải nội dung trước khi trích đoạn', async () => {
+  const store = { data: {}, save() {} };
+  const kho = khoMau();
+  kho.upsert({ id: 'den:7', chieu: 'den', soKyHieu: '7/CV-X', ngayBanHanh: '01/06/2026', coQuan: 'UBND xã', loai: '', trichYeu: 'Về bồi thường, giải phóng mặt bằng dự án đường', taiKhoan: ['a'], doMat: false, tep: [], trang: [], chuaChiTiet: true, nguon: { ma_van_ban_den_kc: 7 }, capNhat: '' });
+  const p = new PhienBaoCao({ store, kho });
+  p.napChuDe('Bồi thường, giải phóng mặt bằng năm 2026', '');
+  let goi = null;
+  await p.phanTich({ layNoiDung: async ids => {
+    goi = ids;
+    kho.upsert({ ...kho.get('den:7'), chuaChiTiet: false, trang: [{ tep: 0, so: 1, text: 'Đã bồi thường, giải phóng mặt bằng 30 ha cho dự án đường.' }], tep: [{ name: 'a.pdf', path: 'p', method: 'pdf-text' }] });
+    return { ok: true, daTai: ids.length };
+  } });
+  assert.deepStrictEqual(goi, ['den:7']);
+  const m = store.data.baoCao.dc.muc[0];
+  assert.ok(store.data.baoCao.ketQua[m.id].trichDoan.some(t => /30 ha/.test(t.text)));
+  assert.strictEqual(store.data.baoCao.lanTai.daTai, 1);
 });

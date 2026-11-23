@@ -18,8 +18,8 @@ Thiết kế: [`docs/superpowers/specs/2026-11-23-bao-cao-ioffice-design.md`](do
 ## Sử dụng
 
 1. **Tài khoản & Cài đặt** → *Thêm tài khoản* → *Đăng nhập*: tự đăng nhập trong cửa sổ iOffice. Ứng dụng **không lưu mật khẩu**; chỉ dùng tài khoản người khác khi chủ tài khoản đồng ý.
-2. Quét nền: 12:00 hằng ngày (đổi được), máy tắt lúc đó thì chạy bù sau khi mở máy ~5 phút. Lượt đầu lấy từ 01/01/2025 và chia nhiều ngày theo giới hạn tải (mặc định 300 lời gọi, 100 tệp mỗi tài khoản mỗi lượt). Nút **Quét ngay** để chạy lập tức.
-3. **Báo cáo mới**: kéo thả đề cương Word, hoặc gõ chủ đề (+ số ký hiệu văn bản cần lấy) → kiểm tra kỳ báo cáo, trích yếu, Kính gửi, đoạn mở → **Phân tích**.
+2. Quét nền: 12:00 hằng ngày (đổi được), máy tắt lúc đó thì chạy bù sau khi mở máy ~5 phút. Quét nền **chỉ lấy danh sách** văn bản đến/đi (số, ngày, cơ quan, trích yếu), không tải tệp. Nút **Quét ngay** để chạy lập tức.
+3. **Báo cáo mới**: kéo thả đề cương Word, hoặc gõ chủ đề (+ số ký hiệu văn bản cần lấy) → kiểm tra kỳ báo cáo, trích yếu, Kính gửi, đoạn mở → **Phân tích**: phần mềm chọn văn bản có trích yếu khớp từng mục (tối đa 15 văn bản/mục, 150 văn bản/báo cáo, chỉnh trong Cài đặt), **tự tải nội dung** các văn bản đó rồi trích đoạn. Văn bản có trích yếu không nhắc chủ đề sẽ không được chọn — ghim số ký hiệu hoặc thêm từ khóa cho mục.
 4. **Đề cương**: bật/tắt từng mục (mục chỉ đề nghị đơn vị khác báo cáo mặc định tắt), bỏ chọn trích đoạn không phù hợp, thêm từ khóa, mở văn bản gốc; có thể nạp biểu mẫu Excel → **Xuất báo cáo Word** (lưu ở `Documents\BaoCaoIOffice\`).
 5. **Kho văn bản**: tìm toàn văn (có dấu hoặc không dấu), **Lấy ngay theo số ký hiệu** khi cần một văn bản chưa có.
 6. **Ghi nhận API tra cứu** (một lần, để làm bản 0.2): bật → tra cứu văn bản trong cửa sổ iOffice → *Lưu kết quả* → gửi tệp `api-ghi-nhan.json` cho người phát triển. Tệp chỉ có tên API, tên/kiểu tham số và cấu trúc kết quả.

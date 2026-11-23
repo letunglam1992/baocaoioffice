@@ -156,9 +156,13 @@ class Kho {
   }
 
   thongKe() {
-    let mat = 0, choOcr = 0;
-    for (const v of this.meta.values()) { if (v.doMat) mat++; choOcr += (v.tep || []).filter(t => t.canOcr && !t.ocrDone).length; }
-    return { tong: this.meta.size, mat, choOcr, nam: this.cacNam() };
+    let mat = 0, choOcr = 0, coNoiDung = 0;
+    for (const v of this.meta.values()) {
+      if (v.doMat) mat++;
+      else if (!v.chuaChiTiet) coNoiDung++;
+      choOcr += (v.tep || []).filter(t => t.canOcr && !t.ocrDone).length;
+    }
+    return { tong: this.meta.size, coNoiDung, mat, choOcr, nam: this.cacNam() };
   }
 
   save() {

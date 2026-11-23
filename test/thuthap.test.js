@@ -227,3 +227,51 @@ test('tệp lỗi do lỗi phần mềm 0.1.1 («r is not defined») được t�
   assert.strictEqual(t.loiTai, undefined);
   assert.match(kho.get('di:6').trang[0].text, /12,5 ha/);
 });
+
+// ---- 0.2.0: quét nền chỉ lấy danh sách; tải nội dung theo yêu cầu ----
+const { layChiTiet } = require('../src/thuthap');
+
+test('chỉ lấy danh sách: không gọi chi tiết, không tải tệp; trích yếu vào kho', async () => {
+  const io = await taoFakeIo();
+  let ct = 0; const g1 = io.chiTiet.bind(io), g2 = io.chiTietVanBanDi.bind(io);
+  io.chiTiet = async (...a) => { ct++; return g1(...a); }; io.chiTietVanBanDi = async (...a) => { ct++; return g2(...a); };
+  io.listVanBanDen = async () => [{ ma_van_ban_den_kc: 1, ma_xu_ly_den: 11, so_ky_hieu: '131/KH-UBND', trich_yeu: 'Kế hoạch giải phóng mặt bằng', ngay_ban_hanh: '14/05/2026', ten_co_quan_ban_hanh: 'UBND tỉnh' }];
+  io.listVanBanDiDaPhatHanh = async () => [{ ma_van_ban_di_kc: 6, so_ky_hieu: '1410/TTr-SNNMT', trich_yeu: 'Tờ trình dự án', ngay_di: '20/11/2026' }];
+  const kho = new Kho(tmp());
+  const r = await thuThap({ io, kho, taiKhoan: 'a', tuNgay: '01/01/2026', denNgay: '23/11/2026', tamDir: tmp(), chiDanhSach: true, log: () => {} });
+  assert.strictEqual(r.ok, true);
+  assert.strictEqual(r.moi, 2);
+  assert.strictEqual(ct, 0);
+  assert.strictEqual(io.taiVe.length, 0);
+  const v = kho.get('den:1');
+  assert.strictEqual(v.chuaChiTiet, true);
+  assert.strictEqual(v.soKyHieu, '131/KH-UBND');
+  assert.strictEqual(v.nguon.ma_xu_ly_den, 11);
+  assert.strictEqual(kho.tim('giai phong mat bang', {})[0].vb.id, 'den:1');
+  assert.strictEqual(kho.get('di:6').ngayBanHanh, '20/11/2026');
+});
+
+test('chỉ lấy danh sách không ghi đè văn bản đã có nội dung, chỉ thêm tài khoản', async () => {
+  const kho = new Kho(tmp());
+  await chay({ kho }); // tải đầy đủ trước
+  const truoc = kho.get('di:6').trang.length;
+  const io = await taoFakeIo();
+  await thuThap({ io, kho, taiKhoan: 'b', tuNgay: '01/01/2026', denNgay: '23/11/2026', tamDir: tmp(), chiDanhSach: true, log: () => {} });
+  const v = kho.get('di:6');
+  assert.strictEqual(v.trang.length, truoc);
+  assert.ok(!v.chuaChiTiet);
+  assert.deepStrictEqual(v.taiKhoan.sort(), ['a', 'b']);
+});
+
+test('layChiTiet: chỉ tải văn bản được chọn; văn bản mật không tải tệp', async () => {
+  const io = await taoFakeIo();
+  const kho = new Kho(tmp());
+  await thuThap({ io, kho, taiKhoan: 'a', tuNgay: '01/01/2026', denNgay: '23/11/2026', tamDir: tmp(), chiDanhSach: true, log: () => {} });
+  const r = await layChiTiet({ io, kho, ids: ['di:6', 'den:9'], taiKhoan: 'a', tamDir: tmp(), log: () => {} });
+  assert.strictEqual(r.ok, true);
+  assert.deepStrictEqual(io.taiVe, ['f/6__1410-TTr-SNNMT.pdf']);
+  assert.match(kho.get('di:6').trang[0].text, /12,5 ha/);
+  assert.ok(!kho.get('di:6').chuaChiTiet);
+  assert.strictEqual(kho.get('den:9').doMat, true);
+  assert.strictEqual(kho.get('den:1').chuaChiTiet, true, 'văn bản không chọn vẫn chỉ có danh sách');
+});

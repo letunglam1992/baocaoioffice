@@ -30,6 +30,6 @@ RENDER.push(s => {
   const k = s.kho;
   $('#demKho').textContent = k.tong;
   $('#theKho').innerHTML = [
-    ['Văn bản trong kho', k.tong], ['Chờ OCR (bản scan)', k.choOcr], ['Văn bản mật (chỉ trích yếu)', k.mat], ['Lượt quét gần nhất', fmtTime(s.lastRunAt)]
+    ['Văn bản trong danh sách', k.tong], ['Đã tải nội dung', k.coNoiDung], ['Văn bản mật (chỉ trích yếu)', k.mat], ['Chờ OCR (bản scan)', k.choOcr]
   ].map(([t, v]) => `<div class="card"><div class="muted">${t}</div><div class="big">${esc(v)}</div></div>`).join('');
 });

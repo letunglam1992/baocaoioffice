@@ -170,3 +170,11 @@ Tên thư viện cụ thể (MiniSearch / FlexSearch; word-extractor; SheetJS ch
 
 - Gọi thử API văn bản đi đã phát hành; dò API tra cứu kho Sở bằng chế độ «Ghi nhận API».
 - Chạy thử với đề cương NQ 09 thật và so với báo cáo BC_NQ_09 đã ban hành.
+
+## 8. Sửa đổi 0.2.0 — chỉ tải văn bản liên quan (anh Lâm duyệt 23/11/2026)
+
+Thay §5.4 «tải toàn bộ»:
+- **Quét nền chỉ lấy danh sách**: số ký hiệu, ngày, cơ quan, trích yếu, mã văn bản (để tải sau) của văn bản đến/đi — không gọi chi tiết, không tải tệp. Trích yếu được đưa vào chỉ mục tìm kiếm.
+- **Khi bấm «Phân tích»**: với mỗi mục đang bật, chọn văn bản theo trích yếu (từ khóa của mục; khớp ≥ 1 cụm hai âm tiết hoặc ≥ 2 từ khóa), cộng văn bản ghim theo số ký hiệu và văn bản có trích yếu viện dẫn văn bản gốc của đề cương, trong kỳ báo cáo. Tối đa 15 văn bản/mục, 150 văn bản/báo cáo (chỉnh được). **Tự tải** (không hỏi lại) chi tiết + tệp của các văn bản chưa có nội dung, rồi trích đoạn như cũ. Văn bản đã tải được giữ, báo cáo sau dùng lại.
+- Độ mật được xác định khi tải chi tiết (giữ quy tắc an toàn). Văn bản mật: không tải tệp.
+- Hạn chế đã nêu: văn bản có trích yếu không nhắc chủ đề sẽ không được chọn tự động — bù bằng ghim số ký hiệu / thêm từ khóa mục.

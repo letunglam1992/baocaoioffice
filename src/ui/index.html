@@ -95,12 +95,14 @@
       <div class="row"><label class="sr" for="tenTk">Tên tài khoản mới</label><input id="tenTk" placeholder="Tên gợi nhớ, vd «Văn thư Sở»"><button type="button" class="btn primary" id="btnThemTk">Thêm tài khoản</button></div>
     </div>
     <div class="card">
-      <h2>Quét nền</h2>
+      <h2>Quét nền và tải văn bản</h2>
+      <p class="muted">Quét nền chỉ lấy danh sách văn bản (số, ngày, cơ quan, trích yếu). Nội dung văn bản chỉ được tải khi bấm «Phân tích» — chọn theo trích yếu khớp các mục của báo cáo.</p>
       <div class="form3">
         <div><label for="cdLich">Giờ quét (cách nhau bằng dấu phẩy)</label><input id="cdLich"></div>
         <div><label for="cdTuNgayDau">Lượt đầu lấy từ ngày</label><input id="cdTuNgayDau"></div>
-        <div><label for="cdMaxFiles">Tối đa tệp / tài khoản / lượt</label><input id="cdMaxFiles" type="number" min="10"></div>
-        <div><label for="cdMaxCalls">Tối đa lời gọi / tài khoản / lượt</label><input id="cdMaxCalls" type="number" min="20"></div>
+        <div><label for="cdMoiMuc">Văn bản tải tối đa cho mỗi mục báo cáo</label><input id="cdMoiMuc" type="number" min="1" max="100"></div>
+        <div><label for="cdToiDa">Văn bản tải tối đa cho mỗi báo cáo</label><input id="cdToiDa" type="number" min="10" max="2000"></div>
+        <div><label for="cdMaxCalls">Tối đa lời gọi / tài khoản / lượt quét danh sách</label><input id="cdMaxCalls" type="number" min="20"></div>
         <div><label for="cdKho">Thư mục kho</label><div class="row tight"><input id="cdKho" class="grow" readonly><button type="button" class="btn small" id="btnChonKho">Chọn…</button></div></div>
         <div><label for="cdQvb">Thư mục văn bản của quetvanban (chỉ đọc)</label><input id="cdQvb"></div>
       </div>
@@ -126,7 +128,11 @@
 
   <section class="panel" id="nhatky">
     <div class="card"><h2>Giới thiệu</h2><p>Tổng hợp báo cáo iOffice — phiên bản <b id="phienBan"></b>. Chỉ đọc iOffice; dữ liệu nằm trên máy này.</p>
-      <section id="whatsNew"><h3>Có gì mới — 0.1.2</h3><ul>
+      <section id="whatsNew"><h3>Có gì mới — 0.2.0</h3><ul>
+        <li>Chỉ tải văn bản liên quan đến báo cáo: quét nền chỉ lấy danh sách (số, ngày, cơ quan, trích yếu); khi bấm «Phân tích», phần mềm chọn văn bản có trích yếu khớp các mục (tối đa 15 văn bản/mục, 150 văn bản/báo cáo) và tự tải nội dung.</li>
+        <li>Văn bản ghim theo số ký hiệu và văn bản viện dẫn văn bản gốc của đề cương luôn được tải; văn bản đã tải được dùng lại cho báo cáo sau.</li>
+        <li>Tab Kho: thêm số «Đã tải nội dung»; «Lấy ngay theo số ký hiệu» và «Mở» tự tải nội dung khi cần.</li>
+      </ul><h3>0.1.2</h3><ul>
         <li>Sửa lỗi bản 0.1.1 làm mọi tệp tải về đều hỏng («r is not defined»): các tệp đã ghi lỗi này được tải lại, không tính vào số lần thử.</li>
       </ul><h3>0.1.1</h3><ul>
         <li>Sửa lỗi quét chậm, «kẹt» ở văn bản có tệp lớn: tệp quá thời gian hoặc lớn hơn 30 MB được bỏ qua/thử lại sau, không dừng cả lượt; văn bản mới được xử lý trước.</li>

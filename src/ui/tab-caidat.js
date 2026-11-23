@@ -24,7 +24,7 @@ function ganTabCaiDat() {
     if (!lich.length || !lich.every(x => HM.test(x))) { toast('Giờ quét phải có dạng 12:00, nhiều giờ cách nhau bằng dấu phẩy.', { tone: 'err' }); $('#cdLich').focus(); return; }
     if (!NGAY.test($('#cdTuNgayDau').value.trim())) { toast('Ngày bắt đầu phải có dạng dd/mm/yyyy.', { tone: 'err' }); $('#cdTuNgayDau').focus(); return; }
     const patch = {
-      lich, tuNgayDau: $('#cdTuNgayDau').value.trim(), maxFiles: +$('#cdMaxFiles').value || 100, maxCalls: +$('#cdMaxCalls').value || 300,
+      lich, tuNgayDau: $('#cdTuNgayDau').value.trim(), moiMuc: +$('#cdMoiMuc').value || 15, toiDaBaoCao: +$('#cdToiDa').value || 150, maxCalls: +$('#cdMaxCalls').value || 300,
       thuMucQuetVanBan: $('#cdQvb').value.trim(), ocrLucRanh: $('#cdOcr').checked, tuKhoiDong: $('#cdKhoiDong').checked,
       giuTep: { loai: dsPhay($('#cdGiuLoai').value), tranMB: +$('#cdGiuTran').value || 500 },
       ai: { bat: $('#cdAi').checked, diaChi: $('#cdAiDiaChi').value.trim(), khongGui: dsPhay($('#cdAiKhong').value) }
@@ -47,7 +47,7 @@ RENDER.push(s => {
   if (cu) sel.value = cu;
   if (!daNapCaiDat) { // chỉ điền form một lần, tránh ghi đè khi người dùng đang sửa
     const c = s.caiDat;
-    $('#cdLich').value = c.lich.join(', '); $('#cdTuNgayDau').value = c.tuNgayDau; $('#cdMaxFiles').value = c.maxFiles; $('#cdMaxCalls').value = c.maxCalls;
+    $('#cdLich').value = c.lich.join(', '); $('#cdTuNgayDau').value = c.tuNgayDau; $('#cdMoiMuc').value = c.moiMuc; $('#cdToiDa').value = c.toiDaBaoCao; $('#cdMaxCalls').value = c.maxCalls;
     $('#cdKho').value = s.khoDir; $('#cdQvb').value = c.thuMucQuetVanBan || ''; $('#cdOcr').checked = !!c.ocrLucRanh; $('#cdKhoiDong').checked = !!c.tuKhoiDong;
     $('#cdGiuLoai').value = (c.giuTep.loai || []).join(', '); $('#cdGiuTran').value = c.giuTep.tranMB;
     $('#cdAi').checked = !!c.ai.bat; $('#cdAiDiaChi').value = c.ai.diaChi; $('#cdAiKhong').value = (c.ai.khongGui || []).join(', ');
