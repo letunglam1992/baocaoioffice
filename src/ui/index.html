@@ -1,0 +1,148 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self'; script-src 'self'; img-src 'self' data:">
+<title>Tổng hợp báo cáo iOffice</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header class="top">
+  <div class="brand"><div class="logo">B</div><div><div class="title">Tổng hợp báo cáo iOffice</div><div class="sub" id="trangThaiNen">Đang tải…</div></div></div>
+  <div class="actions">
+    <button type="button" class="btn ghost" id="btnQuet">Quét ngay</button>
+    <button type="button" class="btn ghost" id="btnDung" hidden>Dừng</button>
+  </div>
+</header>
+<div class="progress" id="tienDo" hidden></div>
+<nav class="tabs" role="tablist">
+  <button class="tab active" data-tab="baocao">Báo cáo mới</button>
+  <button class="tab" data-tab="decuong">Đề cương <span id="demMuc" class="count muted">0</span></button>
+  <button class="tab" data-tab="kho">Kho văn bản <span id="demKho" class="count muted">0</span></button>
+  <button class="tab" data-tab="caidat">Tài khoản &amp; Cài đặt</button>
+  <button class="tab" data-tab="nhatky">Nhật ký &amp; Giới thiệu</button>
+</nav>
+<main>
+  <section class="panel active" id="baocao">
+    <div class="grid2">
+      <div class="card">
+        <h2>Từ đề cương Word</h2>
+        <p class="muted">Đề cương do cấp trên gửi (.docx, .doc). Phần mềm tách các mục I, II, 1, 1.1, a)…; câu «Đề nghị …» được hiểu là chỉ dẫn.</p>
+        <div class="drop" id="dropDeCuong" tabindex="0">Kéo thả tệp Word vào đây hoặc <button type="button" class="btn small" id="btnChonDeCuong">Chọn tệp…</button></div>
+      </div>
+      <div class="card">
+        <h2>Từ chủ đề tự gõ</h2>
+        <label for="chuDe">Chủ đề (mỗi dòng một mục)</label>
+        <textarea id="chuDe" rows="4" placeholder="vd: Giải phóng mặt bằng năm 2026"></textarea>
+        <label for="soGhim">Số ký hiệu văn bản cần lấy (cách nhau bằng dấu phẩy, không bắt buộc)</label>
+        <input id="soGhim" placeholder="vd: 131/KH-UBND, 09-NQ/TU">
+        <button type="button" class="btn primary" id="btnNapChuDe">Tạo đề cương từ chủ đề</button>
+      </div>
+    </div>
+    <div class="card" id="phienHienTai" hidden>
+      <h2>Báo cáo đang làm</h2>
+      <div class="form3">
+        <div><label for="tuNgay">Từ ngày</label><input id="tuNgay" placeholder="dd/mm/yyyy"></div>
+        <div><label for="denNgay">Đến ngày</label><input id="denNgay" placeholder="dd/mm/yyyy"></div>
+        <div><label for="kinhGui">Kính gửi</label><input id="kinhGui"></div>
+      </div>
+      <label for="trichYeu">Trích yếu báo cáo</label>
+      <textarea id="trichYeu" rows="2"></textarea>
+      <label for="moDau">Đoạn mở đầu («Thực hiện …»)</label>
+      <textarea id="moDau" rows="2"></textarea>
+      <div class="row">
+        <button type="button" class="btn primary" id="btnPhanTich">Phân tích</button>
+        <span class="muted" id="ttPhanTich"></span>
+      </div>
+    </div>
+  </section>
+
+  <section class="panel" id="decuong">
+    <div class="empty" id="dcTrong">Chưa có đề cương. Vào tab «Báo cáo mới» để nạp đề cương hoặc gõ chủ đề.</div>
+    <div class="split" id="dcCo" hidden>
+      <div class="list" id="dsMuc" role="listbox" aria-label="Các mục đề cương"></div>
+      <div class="detail" id="chiTietMuc"><div class="empty">Chọn một mục bên trái để xem trích đoạn.</div></div>
+    </div>
+    <div class="row sticky" id="dcHanhDong" hidden>
+      <button type="button" class="btn ghost" id="btnPhanTich2">Phân tích lại</button>
+      <button type="button" class="btn ghost" id="btnBieuMau">Nạp biểu mẫu Excel…</button>
+      <button type="button" class="btn primary" id="btnXuat">Xuất báo cáo Word</button>
+      <span class="muted" id="ttXuat"></span>
+    </div>
+  </section>
+
+  <section class="panel" id="kho">
+    <div class="cards" id="theKho"></div>
+    <div class="row">
+      <label class="sr" for="oTim">Tìm trong kho</label>
+      <input id="oTim" class="grow" placeholder="Tìm toàn văn, gõ có dấu hoặc không dấu…">
+      <select id="locChieu" aria-label="Lọc chiều văn bản"><option value="">Đến và đi</option><option value="den">Văn bản đến</option><option value="di">Văn bản đi</option></select>
+      <button type="button" class="btn primary" id="btnTim">Tìm</button>
+    </div>
+    <div class="row">
+      <label class="sr" for="oSo">Số ký hiệu</label>
+      <input id="oSo" placeholder="Số ký hiệu, vd 131/KH-UBND">
+      <button type="button" class="btn ghost" id="btnLaySo">Lấy ngay theo số ký hiệu</button>
+    </div>
+    <div class="tablewrap"><table class="grid"><thead><tr><th>Số ký hiệu</th><th class="w100">Ngày</th><th>Cơ quan</th><th>Trích yếu</th><th class="w90"></th></tr></thead><tbody id="kqTim"><tr><td colspan="5" class="muted">Nhập từ khóa để tìm.</td></tr></tbody></table></div>
+  </section>
+
+  <section class="panel" id="caidat">
+    <div class="card">
+      <h2>Tài khoản iOffice</h2>
+      <p class="muted">Bạn tự đăng nhập trong cửa sổ iOffice; phần mềm không lưu mật khẩu. Chỉ dùng tài khoản của người khác khi chủ tài khoản đồng ý.</p>
+      <table class="grid"><thead><tr><th>Tên gợi nhớ</th><th>Họ tên iOffice</th><th>Lần đủ gần nhất</th><th>Tình trạng</th><th class="w260"></th></tr></thead><tbody id="dsTaiKhoan"></tbody></table>
+      <div class="row"><label class="sr" for="tenTk">Tên tài khoản mới</label><input id="tenTk" placeholder="Tên gợi nhớ, vd «Văn thư Sở»"><button type="button" class="btn primary" id="btnThemTk">Thêm tài khoản</button></div>
+    </div>
+    <div class="card">
+      <h2>Quét nền</h2>
+      <div class="form3">
+        <div><label for="cdLich">Giờ quét (cách nhau bằng dấu phẩy)</label><input id="cdLich"></div>
+        <div><label for="cdTuNgayDau">Lượt đầu lấy từ ngày</label><input id="cdTuNgayDau"></div>
+        <div><label for="cdMaxFiles">Tối đa tệp / tài khoản / lượt</label><input id="cdMaxFiles" type="number" min="10"></div>
+        <div><label for="cdMaxCalls">Tối đa lời gọi / tài khoản / lượt</label><input id="cdMaxCalls" type="number" min="20"></div>
+        <div><label for="cdKho">Thư mục kho</label><div class="row tight"><input id="cdKho" class="grow" readonly><button type="button" class="btn small" id="btnChonKho">Chọn…</button></div></div>
+        <div><label for="cdQvb">Thư mục văn bản của quetvanban (chỉ đọc)</label><input id="cdQvb"></div>
+      </div>
+      <label class="check"><input type="checkbox" id="cdOcr"> OCR văn bản scan lúc máy rảnh</label>
+      <label class="check"><input type="checkbox" id="cdKhoiDong"> Tự chạy khi mở máy</label>
+      <label for="cdGiuLoai">Giữ tệp gốc cho các loại văn bản (cách nhau bằng dấu phẩy; để trống = không giữ)</label>
+      <div class="row tight"><input id="cdGiuLoai" class="grow" placeholder="vd: Báo cáo, Kế hoạch"><label for="cdGiuTran" class="sr">Trần dung lượng (MB)</label><input id="cdGiuTran" type="number" min="50" class="w100"> MB</div>
+    </div>
+    <div class="card">
+      <h2>Tinh chỉnh bằng AI (tùy chọn)</h2>
+      <p class="warn-note">Khi bật, các trích đoạn đã chọn của mục được gửi tới Cloudflare Workers AI. Văn bản có độ mật không bao giờ được gửi.</p>
+      <label class="check"><input type="checkbox" id="cdAi"> Bật tinh chỉnh bằng AI</label>
+      <label for="cdAiDiaChi">Địa chỉ Worker</label><input id="cdAiDiaChi">
+      <label for="cdAiKhong">Không gửi đoạn chứa (từ khóa hoặc cơ quan, cách nhau bằng dấu phẩy)</label><input id="cdAiKhong" placeholder="vd: Công an tỉnh, Bộ Chỉ huy Quân sự">
+    </div>
+    <div class="row"><button type="button" class="btn primary" id="btnLuuCd">Lưu cài đặt</button></div>
+    <div class="card">
+      <h2>Ghi nhận API tra cứu</h2>
+      <p class="muted">Dùng một lần để chuẩn bị bản 0.2: bấm «Bật ghi nhận», tra cứu văn bản trong cửa sổ iOffice vừa mở, rồi bấm «Lưu kết quả». Chỉ ghi tên API, tên tham số và cấu trúc kết quả; không ghi nội dung văn bản, mật khẩu hay token.</p>
+      <div class="row"><label for="ghiTk">Tài khoản</label><select id="ghiTk"></select><button type="button" class="btn ghost" id="btnGhiBat">Bật ghi nhận</button><button type="button" class="btn ghost" id="btnGhiLay">Lưu kết quả</button></div>
+    </div>
+  </section>
+
+  <section class="panel" id="nhatky">
+    <div class="card"><h2>Giới thiệu</h2><p>Tổng hợp báo cáo iOffice — phiên bản <b id="phienBan"></b>. Chỉ đọc iOffice; dữ liệu nằm trên máy này.</p>
+      <section id="whatsNew"><h3>Có gì mới — 0.1.0</h3><ul>
+        <li>Nhiều tài khoản iOffice, quét nền văn bản đến/đi vào kho cục bộ, tìm toàn văn có dấu/không dấu.</li>
+        <li>Nạp đề cương Word hoặc gõ chủ đề → trích đoạn có số liệu kèm nguồn cho từng mục.</li>
+        <li>Xuất báo cáo Word theo khung của Sở, tự điền phụ lục danh mục văn bản, kèm tệp dữ liệu thô.</li>
+        <li>Tùy chọn tinh chỉnh bằng Cloudflare Worker; chế độ ghi nhận API tra cứu.</li>
+      </ul></section>
+    </div>
+    <div class="tablewrap"><table class="grid log"><thead><tr><th class="w170">Thời điểm</th><th class="w90">Mức</th><th>Nội dung</th></tr></thead><tbody id="dsNhatKy"></tbody></table></div>
+  </section>
+</main>
+<div class="toast" id="toast" hidden></div>
+<script src="cay.js"></script>
+<script src="core.js"></script>
+<script src="tab-baocao.js"></script>
+<script src="tab-decuong.js"></script>
+<script src="tab-kho.js"></script>
+<script src="tab-caidat.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

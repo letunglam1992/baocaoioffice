@@ -156,6 +156,7 @@ function dangKyIpc() {
     shell.showItemInFolder(r.baoCao);
     return r;
   });
+  h('baoCao.boVanAi', mucId => phien.datVanAi(mucId, null));
   h('baoCao.moThuMuc', p => shell.showItemInFolder(p));
   h('caiDat.ghi', patch => {
     const S = store.data.caiDat;
