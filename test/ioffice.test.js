@@ -20,3 +20,13 @@ test('call từ chối API ngoài danh sách trắng trước khi mở cửa s�
   await assert.rejects(io.call('/api/van-ban-den/chuyen-xu-ly'), /API_KHONG_DUOC_PHEP/);
   assert.strictEqual(io.win, null);
 });
+
+test('kiemTraNoiDung: nhận PDF/Word/Excel, từ chối trang HTML (phiên hết hạn)', () => {
+  const { kiemTraNoiDung } = require('../src/ioffice');
+  assert.doesNotThrow(() => kiemTraNoiDung(Buffer.from('%PDF-1.4'), 'a.pdf'));
+  assert.doesNotThrow(() => kiemTraNoiDung(Buffer.from('PK\x03\x04'), 'a.docx'));
+  assert.doesNotThrow(() => kiemTraNoiDung(Buffer.from([0xd0, 0xcf, 0x11, 0xe0]), 'a.doc'));
+  assert.throws(() => kiemTraNoiDung(Buffer.from('<html>login</html>'), 'a.pdf'), /phiên/);
+  assert.throws(() => kiemTraNoiDung(Buffer.from('<!DOCTYPE html>'), 'a.docx'), /phiên/);
+  assert.throws(() => kiemTraNoiDung(Buffer.alloc(0), 'a.xlsx'), /rỗng/);
+});

@@ -295,7 +295,7 @@ class IOffice {
     await this.exec(`(${pageBridge.toString()})()`);
     const r = await this.exec(`window.__iosync.file(${JSON.stringify(path)}, ${JSON.stringify(name || 'file.pdf')})`);
     const buf = Buffer.from(r.b64, 'base64');
-    if (buf.slice(0, 4).toString('latin1') !== '%PDF') throw new Error('Nội dung tải về không phải PDF (có thể phiên đã hết hạn)');
+    kiemTraNoiDung(buf, name);
     return buf;
   }
 
@@ -305,6 +305,16 @@ class IOffice {
   }
 }
 
+/** Nội dung tải về phải đúng loại tệp; trang HTML nghĩa là phiên đã hết hạn. */
+function kiemTraNoiDung(buf, name) {
+  if (!buf || !buf.length) throw new Error('Tệp tải về rỗng');
+  const dau = buf.slice(0, 64).toString('latin1').trimStart().toLowerCase();
+  if (dau.startsWith('<!doctype html') || dau.startsWith('<html')) throw new Error('Nội dung tải về là trang web (có thể phiên đã hết hạn)');
+  const ext = (String(name || '').toLowerCase().match(/\.([a-z0-9]+)$/) || [])[1];
+  const magic = { pdf: '%PDF', docx: 'PK', xlsx: 'PK', doc: '\xd0\xcf\x11\xe0' }[ext];
+  if (magic && buf.slice(0, magic.length).toString('latin1') !== magic) throw new Error(`Nội dung tải về không đúng định dạng .${ext}`);
+}
+
 function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
 
-module.exports = { IOffice, BASE_URL, ALLOWED_APIS, partitionFor, PARTITION_PREFIX };
+module.exports = { IOffice, BASE_URL, ALLOWED_APIS, partitionFor, PARTITION_PREFIX, kiemTraNoiDung };
