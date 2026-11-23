@@ -10,6 +10,9 @@ RENDER.push(s => {
 });
 
 $$('.tab').forEach(t => { t.onclick = () => goTab(t.dataset.tab); });
+// thả tệp ngoài vùng kéo-thả: không để trình duyệt mở tệp đó
+document.addEventListener('dragover', e => e.preventDefault());
+document.addEventListener('drop', e => e.preventDefault());
 $('#btnQuet').onclick = async () => { if (await goi(bc.quet.ngay)) toast('Đã bắt đầu quét. Theo dõi tiến độ ở dòng trên cùng.'); };
 $('#btnDung').onclick = () => goi(bc.quet.dung);
 ganTabBaoCao(); ganTabDeCuong(); ganTabKho(); ganTabCaiDat();

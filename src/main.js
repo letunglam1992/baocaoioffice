@@ -57,9 +57,10 @@ function createMainWindow() {
     width: 1280, height: 860, minWidth: 900, minHeight: 600, show: false, title: 'Tổng hợp báo cáo iOffice', icon: icon(), autoHideMenuBar: true,
     webPreferences: { preload: path.join(__dirname, 'preload.js'), contextIsolation: true, nodeIntegration: false, sandbox: true }
   });
-  mainWin.loadFile(path.join(__dirname, 'ui', 'index.html'));
+  const trang = path.join(__dirname, 'ui', 'index.html');
+  require('./app/baove').chanDieuHuong(mainWin.webContents, require('url').pathToFileURL(trang).href);
+  mainWin.loadFile(trang);
   mainWin.on('close', e => { if (!quitting) { e.preventDefault(); mainWin.hide(); } });
-  mainWin.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
 }
 function showMain() { mainWin.show(); mainWin.focus(); push(); }
 
