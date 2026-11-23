@@ -2,5 +2,7 @@ node_modules/
 dist/
 .mau-that/
 .demo/
+.superpowers/
 *.enc
 du-lieu*.json
+shots/

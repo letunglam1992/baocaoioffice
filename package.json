@@ -1,0 +1,64 @@
+{
+  "name": "bao-cao-ioffice",
+  "productName": "Tổng hợp báo cáo iOffice",
+  "version": "0.1.0",
+  "description": "Gom văn bản iOffice (chỉ đọc) và tổng hợp báo cáo Word theo đề cương",
+  "main": "src/main.js",
+  "author": "Lê Tùng Lâm",
+  "license": "MIT",
+  "scripts": {
+    "start": "electron .",
+    "test": "node --test \"test/*.test.js\"",
+    "dist": "electron-builder --win nsis --x64",
+    "dist:dir": "electron-builder --dir"
+  },
+  "build": {
+    "appId": "vn.sonla.snnmt.baocao-ioffice",
+    "productName": "Tong hop bao cao iOffice",
+    "files": [
+      "src/**/*",
+      "assets/**/*",
+      "build/icon.png",
+      "package.json"
+    ],
+    "asarUnpack": [
+      "node_modules/**"
+    ],
+    "win": {
+      "target": "nsis",
+      "icon": "build/icon.ico",
+      "signAndEditExecutable": true
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "shortcutName": "Tổng hợp báo cáo iOffice",
+      "installerIcon": "build/icon.ico",
+      "uninstallerIcon": "build/icon.ico",
+      "artifactName": "BaoCaoIOffice-Setup-${version}.exe"
+    },
+    "directories": {
+      "buildResources": "build",
+      "output": "dist"
+    },
+    "publish": null
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "@tesseract.js-data/vie": "^1.0.0",
+    "jszip": "^3.10.2",
+    "minisearch": "^7.2.0",
+    "pdfjs-dist": "^4.10.38",
+    "pngjs": "^7.0.0",
+    "tesseract.js": "^5.1.1",
+    "word-extractor": "^1.0.4"
+  },
+  "devDependencies": {
+    "electron": "^33.4.11",
+    "electron-builder": "^26.18.0"
+  }
+}
