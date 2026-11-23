@@ -147,3 +147,12 @@ test('trích yếu nhiều dòng: dời đường kẻ dưới xuống theo số
   assert.ok(off(dai) > off(ngan));
   assert.ok(off(dai) >= 3 * 200000);
 });
+
+test('đề cương không có cấp La Mã: nhãn theo độ sâu của cây', async () => {
+  const dc = parseDeCuong([{ type: 'p', text: 'ĐỀ CƯƠNG' }, { type: 'p', text: 'Báo cáo năm 2026' }, { type: 'p', text: '1. Mục A' }, { type: 'p', text: '1.1. Con của A' }, { type: 'p', text: '2. Mục B' }]);
+  const buf = await xuatBaoCao(await docKhung(await khungGia()), { dc, ketQua: {} });
+  const texts = (await docBlocks(buf)).blocks.filter(b => b.type === 'p').map(b => b.text);
+  assert.ok(texts.includes('I. Mục A'), texts.join('|'));
+  assert.ok(texts.includes('1. Con của A'));
+  assert.ok(texts.includes('II. Mục B'));
+});

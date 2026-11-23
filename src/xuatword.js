@@ -106,15 +106,15 @@ const nguon = t => `(${t.soKyHieu}${t.ngay ? ' ngày ' + t.ngay : ''}${t.trang ?
 
 function thanBaoCao(kieu, { dc, ketQua, vanBanAi = {}, danhMuc }) {
   const out = [];
-  const sinh = (ds, capCha) => {
+  const sinh = (ds, sau) => { // sau = độ sâu trong cây (0 = cấp cao nhất)
     let stt = 0;
     for (const m of ds) {
       if (!m.bat) continue;
       stt++;
       let nhan, k;
-      if (m.cap === 1) { nhan = LA_MA[stt - 1] + '. '; k = kieu.muc1; }
-      else if (capCha === 1) { nhan = stt + '. '; k = kieu.muc2; }
-      else if (capCha === 2) { nhan = (CHU[stt - 1] || stt) + ') '; k = kieu.muc3; }
+      if (sau === 0) { nhan = (LA_MA[stt - 1] || stt) + '. '; k = kieu.muc1; }
+      else if (sau === 1) { nhan = stt + '. '; k = kieu.muc2; }
+      else if (sau === 2) { nhan = (CHU[stt - 1] || stt) + ') '; k = kieu.muc3; }
       else { nhan = '- '; k = kieu.gach; }
       out.push(para(k, nhan + m.tieuDe));
       if (m.bang && m.dang !== 'danhMucVB') out.push(bangXml(m.bang, kieu, { dauDong: m.bang.length > 1 && /^\(1\)$/.test(String(m.bang[1][0] || '').trim()) ? 2 : 1 }));
@@ -129,7 +129,7 @@ function thanBaoCao(kieu, { dc, ketQua, vanBanAi = {}, danhMuc }) {
         else if (!coPhuLuc) out.push(para(kieu.doan, '[Chưa tìm thấy văn bản liên quan — cần bổ sung]', { highlight: true }));
       }
       if (coPhuLuc) out.push(para(kieu.doan, `(Có Phụ lục ${coPhuLuc[1].padStart(2, '0')} kèm theo)`, { italic: true }));
-      sinh(m.con, m.cap === 1 ? 1 : capCha + 1);
+      sinh(m.con, sau + 1);
     }
   };
   sinh(dc.muc, 0);
