@@ -63,7 +63,7 @@ function giuTepGoc(khoDir, name, buf, { tranMB }) {
 }
 
 async function thuThap({ io, kho, taiKhoan, tuNgay, denNgay, gioiHan = {}, tamDir, thuMucQuetVanBan, giuTep, nenDung = () => false, onTienDo = () => {}, log = () => {} }) {
-  const kq = { ok: true, moi: 0, capNhat: 0, tep: 0, loi: [], hetGioiHan: false, dung: false };
+  const kq = { ok: true, moi: 0, capNhat: 0, tep: 0, loiTep: 0, loi: [], hetGioiHan: false, dung: false };
   const maxCalls = gioiHan.maxCalls || 300, maxFiles = gioiHan.maxFiles || 100;
   let calls = 0;
   const dem = () => { calls++; };
@@ -137,6 +137,7 @@ async function thuThap({ io, kho, taiKhoan, tuNgay, denNgay, gioiHan = {}, tamDi
           } catch (e) {
             if (loiPhien(e)) throw e;
             tep.method = 'none'; tep.loiTai = true; tep.error = String(e.message || e).slice(0, 200);
+            kq.loiTep++;
           } finally {
             if (tam) { try { fs.unlinkSync(tam); } catch { /* đã xóa */ } }
           }

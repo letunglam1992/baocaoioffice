@@ -121,3 +121,12 @@ test('chi tiết rỗng: không tải tệp từ dòng danh sách', async () => 
   assert.strictEqual(kho.get('den:1').doMat, true);
   assert.ok(!io.taiVe.includes('f/1__131-KH-UBND.pdf'));
 });
+
+test('đếm tệp tải lỗi', async () => {
+  const io = await taoFakeIo();
+  const goc = io.downloadFile.bind(io);
+  io.downloadFile = async (p, n) => { if (p === 'f/7__88-CV-SNNMT.pdf') { io.taiVe.push(p); throw new Error('mạng chập chờn'); } return goc(p, n); };
+  const { r } = await chay({ io });
+  assert.strictEqual(r.loiTep, 1);
+  assert.strictEqual(r.ok, true);
+});

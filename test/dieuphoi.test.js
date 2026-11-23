@@ -89,3 +89,12 @@ test('OCR lúc rảnh: tải lại tệp, ghi chữ, đánh dấu đã OCR', asy
   assert.deepStrictEqual(v.trang.map(t => t.so), [1, 2]);
   assert.strictEqual(kho.canOcr(5).length, 0);
 });
+
+test('lượt còn văn bản/tệp lỗi thì không dời mốc (để lượt sau thử lại)', async () => {
+  const { dp, store } = moiTruong(async () => ({ ok: true, hetGioiHan: false, dung: false, loi: [{ so: '5/CV', msg: 'TIMEOUT' }], loiTep: 0 }));
+  await dp.chayLuot({ lyDo: 'lich' });
+  assert.strictEqual(store.data.taiKhoan.b.lastOkAt, '01/11/2026');
+  const m2 = moiTruong(async () => ({ ok: true, hetGioiHan: false, dung: false, loi: [], loiTep: 2 }));
+  await m2.dp.chayLuot({ lyDo: 'lich' });
+  assert.strictEqual(m2.store.data.taiKhoan.b.lastOkAt, '01/11/2026');
+});

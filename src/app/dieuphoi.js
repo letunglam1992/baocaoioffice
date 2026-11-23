@@ -45,7 +45,8 @@ class DieuPhoi {
         theoTaiKhoan[id] = r;
         tk.lastRunAt = t;
         const msg = r.loi && r.loi[0] && r.loi[0].msg;
-        if (r.ok && !r.hetGioiHan && !r.dung) { tk.lastOkAt = kl.denNgay; tk.lastFailAt = null; tk.loi = null; }
+        // còn văn bản/tệp lỗi → giữ mốc cũ để lượt sau liệt kê lại và thử lại (văn bản đã xong được bỏ qua nhanh)
+        if (r.ok && !r.hetGioiHan && !r.dung && !(r.loi && r.loi.length) && !r.loiTep) { tk.lastOkAt = kl.denNgay; tk.lastFailAt = null; tk.loi = null; }
         else if (!r.ok) {
           tk.loi = msg || 'Lỗi không rõ';
           if (msg === 'CHUA_DANG_NHAP') this.thongBao(`Tài khoản ${tk.ten || id} cần đăng nhập lại iOffice.`);
