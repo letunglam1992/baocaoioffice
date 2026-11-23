@@ -1,0 +1,64 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  test:
+    name: Kiểm thử (Windows)
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm test
+
+  build:
+    name: Đóng gói bộ cài .exe
+    needs: test
+    runs-on: windows-latest
+    if: github.event_name != 'pull_request'
+    permissions:
+      contents: write   # đưa bộ cài lên Releases
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run dist
+      - name: Tự kiểm tra đọc PDF/OCR trong bản đã đóng gói
+        shell: pwsh
+        run: |
+          $exe = Get-ChildItem "dist/win-unpacked/*.exe" | Where-Object { $_.Name -notmatch 'Uninstall' } | Select-Object -First 1
+          Start-Process -FilePath $exe.FullName -ArgumentList @('--self-test', "`"$PWD/test/mau/scan-gia.pdf`"", "`"$PWD/selftest.json`"") -Wait -NoNewWindow
+          $r = Get-Content selftest.json -Raw | ConvertFrom-Json
+          if (-not $r.ok -or $r.method -ne 'ocr' -or $r.head -notmatch '12,5') { Write-Error "Self-test thất bại: $(Get-Content selftest.json -Raw)"; exit 1 }
+          Write-Host "Self-test OK: $($r.method)"
+      - name: Đưa bộ cài lên Releases (bản thử, mỗi phiên bản một bản)
+        if: github.ref == 'refs/heads/main'
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $v = (Get-Content package.json -Raw | ConvertFrom-Json).version
+          $tag = "v$v"
+          $files = @((Get-ChildItem dist/*.exe).FullName)
+          gh release view $tag *> $null
+          if ($LASTEXITCODE -eq 0) { gh release upload $tag $files --clobber }
+          else { gh release create $tag $files --target $env:GITHUB_SHA --title "Bản $v" --notes "Bộ cài tự dựng từ commit $env:GITHUB_SHA" --prerelease }
+          if ($LASTEXITCODE -ne 0) { exit 1 }
+      - uses: actions/upload-artifact@v4
+        continue-on-error: true
+        with:
+          name: BaoCaoIOffice-Setup
+          path: dist/*.exe
+          retention-days: 5

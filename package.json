@@ -5,7 +5,8 @@
   "description": "Gom văn bản iOffice (chỉ đọc) và tổng hợp báo cáo Word theo đề cương",
   "main": "src/main.js",
   "author": "Lê Tùng Lâm",
-  "license": "MIT",
+  "license": "UNLICENSED",
+  "private": true,
   "scripts": {
     "start": "electron .",
     "test": "node --test \"test/*.test.js\"",
