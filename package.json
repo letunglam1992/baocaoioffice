@@ -1,7 +1,7 @@
 {
   "name": "bao-cao-ioffice",
   "productName": "Tổng hợp báo cáo iOffice",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Gom văn bản iOffice (chỉ đọc) và tổng hợp báo cáo Word theo đề cương",
   "main": "src/main.js",
   "author": "Lê Tùng Lâm",

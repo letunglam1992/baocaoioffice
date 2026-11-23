@@ -38,6 +38,9 @@ function laMatCT(ct) {
 }
 const loiPhien = e => /NOT_READY|NOT_LOGGED_IN|phiên|CHUA_DANG_NHAP/i.test(String(e && e.message || e));
 const MAX_THU = 3; // số lượt thử lại tối đa cho một tệp tải lỗi
+/** Lỗi do chính phần mềm (vd bản 0.1.1: «r is not defined») — không tính vào số lần thử, luôn tải lại. */
+const loiPhanMem = t => /is not defined|is not a function|Cannot read prop/i.test(String(t.error || ''));
+const soLanThu = t => (loiPhanMem(t) ? 0 : (t.thu || 0));
 
 /** Tệp do quetvanban đã lưu: <thư mục>\<Loại>\<số>_<ddmmyyyy>[_vN].pdf — chỉ đọc. */
 function timTepQuetVanBan(root, vb) {
@@ -92,7 +95,7 @@ async function thuThap({ io, kho, taiKhoan, tuNgay, denNgay, gioiHan = {}, tamDi
     return { ...kq, ok: false, loi: [{ so: '', msg: String(e.message || e) }] };
   }
   // văn bản CHƯA có trong kho trước (mới nhất trước), văn bản cần thử lại tệp lỗi sau — một văn bản lỗi không chặn cả lượt
-  const tepXong = t => t.method && (!t.loiTai || (t.thu || 0) >= MAX_THU);
+  const tepXong = t => t.method && (!t.loiTai || soLanThu(t) >= MAX_THU);
   const daXong = id => { const v = kho.get(id); return v && (v.doMat || (v.tep || []).every(tepXong)); };
   ds = ds.filter(d => !daXong(d.id));
   ds.sort((a, b) => (kho.has(a.id) - kho.has(b.id)) || (b.ngay - a.ngay));
@@ -141,7 +144,7 @@ async function thuThap({ io, kho, taiKhoan, tuNgay, denNgay, gioiHan = {}, tamDi
             cu.trang.filter(t => t.tep === tCu).forEach(t => vb.trang.push({ ...t, tep: idx }));
             continue;
           }
-          const thuCu = cu && tCu >= 0 ? (cu.tep[tCu].thu || 0) : 0;
+          const thuCu = cu && tCu >= 0 ? soLanThu(cu.tep[tCu]) : 0;
           const tep = { name, path: p, method: '', canOcr: false, ocrDone: false };
           if (nenDung()) { kq.dung = true; tep.loiTai = true; tep.thu = thuCu; vb.tep.push(tep); continue; }
           let buf = null, tam = null;

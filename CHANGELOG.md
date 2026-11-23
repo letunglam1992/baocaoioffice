@@ -1,5 +1,9 @@
 # Nhật ký thay đổi
 
+## 0.1.2
+- Sửa lỗi 0.1.1: hàm tải tệp trong trang iOffice dùng biến `r` ngoài phạm vi khối `try` → mọi tệp tải hỏng («r is not defined»). Thêm kiểm thử chạy cầu nối trong trang với trang iOffice giả lập (`test/pagebridge.test.js`).
+- Tệp lỗi do lỗi phần mềm (`is not defined`, `is not a function`, `Cannot read prop…`) không tính vào giới hạn 3 lần thử, luôn được tải lại.
+
 ## 0.1.1
 - Quét: tệp quá thời gian (TIMEOUT) không còn bị coi là mất phiên — kiểm tra lại phiên, còn đăng nhập thì đi tiếp; tệp > 30 MB bỏ qua (chặn trong trang trước khi tải); tệp lỗi thử lại tối đa 3 lượt, chỉ tải lại tệp lỗi; văn bản chưa có trong kho được xử lý trước văn bản cần thử lại.
 - Dừng có hiệu lực giữa các tệp; tiến độ ghi tên tệp; giao diện cập nhật số văn bản trong lúc quét; nhật ký ghi tệp tải lâu (≥ 5 giây) và lỗi từng tệp.

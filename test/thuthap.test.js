@@ -215,3 +215,15 @@ test('dừng được giữa các tệp của một văn bản', async () => {
   assert.strictEqual(n, 1);
   assert.ok(kho.thongKe().tong <= 1);
 });
+
+test('tệp lỗi do lỗi phần mềm 0.1.1 («r is not defined») được tải lại, không tính lần thử', async () => {
+  const io = await taoFakeIo();
+  const kho = new Kho(tmp());
+  kho.upsert({ id: 'di:6', chieu: 'di', soKyHieu: '1410/TTr-SNNMT', ngayBanHanh: '20/11/2026', coQuan: 'Sở', loai: 'Tờ trình', trichYeu: 'x', taiKhoan: ['a'], doMat: false,
+    tep: [{ name: '1410-TTr-SNNMT.pdf', path: 'f/6__1410-TTr-SNNMT.pdf', method: 'none', canOcr: false, ocrDone: false, loiTai: true, thu: 3, error: 'r is not defined' }], trang: [], capNhat: '' });
+  await chay({ io, kho });
+  assert.ok(io.taiVe.includes('f/6__1410-TTr-SNNMT.pdf'));
+  const t = kho.get('di:6').tep[0];
+  assert.strictEqual(t.loiTai, undefined);
+  assert.match(kho.get('di:6').trang[0].text, /12,5 ha/);
+});

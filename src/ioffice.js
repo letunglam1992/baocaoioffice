@@ -67,12 +67,13 @@ function pageBridge() {
       const gioiHan = (maxMB || 30) * 1024 * 1024;
       const ac = new AbortController();
       const hen = setTimeout(() => ac.abort(), 150000);
+      let r, buf;
       try {
-        const r = await fetch(url, { signal: ac.signal });
+        r = await fetch(url, { signal: ac.signal });
         if (!r.ok) throw new Error('HTTP ' + r.status);
         const len = +r.headers.get('content-length') || 0;
         if (len > gioiHan) { ac.abort(); throw new Error('QUA_LON ' + Math.round(len / 1048576) + ' MB'); }
-        var buf = new Uint8Array(await r.arrayBuffer());
+        buf = new Uint8Array(await r.arrayBuffer());
       } catch (e) {
         if (ac.signal.aborted && !/QUA_LON/.test(e.message)) throw new Error('TIMEOUT tải tệp');
         throw e;
@@ -351,4 +352,4 @@ function voiHanGio(p, ms, ten) {
 
 function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
 
-module.exports = { IOffice, BASE_URL, ALLOWED_APIS, partitionFor, PARTITION_PREFIX, kiemTraNoiDung, voiHanGio };
+module.exports = { IOffice, BASE_URL, ALLOWED_APIS, partitionFor, PARTITION_PREFIX, kiemTraNoiDung, voiHanGio, pageBridge };
