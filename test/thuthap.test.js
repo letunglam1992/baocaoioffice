@@ -100,3 +100,24 @@ test('giữ tệp gốc theo loại, có trần dung lượng', async () => {
   assert.ok(!fs.existsSync(path.join(giu, '000-cu.pdf')));
   assert.ok(k2);
 });
+
+test('độ mật: thiếu chi tiết hoặc thiếu trường độ mật thì coi là mật (an toàn)', async () => {
+  const { laMatCT } = require('../src/thuthap');
+  assert.strictEqual(laMatCT(null), true);
+  assert.strictEqual(laMatCT({}), true);
+  assert.strictEqual(laMatCT({ ten_cap_do_mat: 'Bình thường' }), false);
+  assert.strictEqual(laMatCT({ ten_cap_do_mat: '' , ma_cap_do_mat: 1 }), false);
+  assert.strictEqual(laMatCT({ ma_cap_do_mat: 1 }), false);
+  assert.strictEqual(laMatCT({ ma_cap_do_mat: 2 }), true);
+  assert.strictEqual(laMatCT({ ten_cap_do_mat: 'Bình thường', ma_cap_do_mat: 3 }), true);
+  assert.strictEqual(laMatCT({ ten_cap_do_mat: 'Mật' }), true);
+});
+
+test('chi tiết rỗng: không tải tệp từ dòng danh sách', async () => {
+  const io = await taoFakeIo();
+  const goc = io.chiTiet.bind(io);
+  io.chiTiet = async ma => (ma === 1 ? null : goc(ma));
+  const { kho } = await chay({ io });
+  assert.strictEqual(kho.get('den:1').doMat, true);
+  assert.ok(!io.taiVe.includes('f/1__131-KH-UBND.pdf'));
+});

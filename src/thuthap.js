@@ -24,6 +24,18 @@ const safeFileBase = (so, ngay) => {
 };
 const safeDirName = loai => String(loai || 'Văn bản khác').replace(/[<>:"\/\\|?*\x00-\x1f]/g, '').trim() || 'Văn bản khác';
 const laMat = ten => { const t = String(ten || '').trim().toLowerCase(); return !!t && !['bình thường', 'thường', 'binh thuong'].includes(t); };
+/**
+ * Độ mật theo chi tiết văn bản — AN TOÀN: không có chi tiết, hoặc không có cả tên lẫn mã độ mật → coi là mật
+ * (không tải, không đọc). Mã độ mật khác 1 (1 = bình thường) → mật.
+ */
+function laMatCT(ct) {
+  if (!ct || typeof ct !== 'object') return true;
+  const coTen = Object.prototype.hasOwnProperty.call(ct, 'ten_cap_do_mat') && ct.ten_cap_do_mat != null;
+  const coMa = ct.ma_cap_do_mat != null && ct.ma_cap_do_mat !== '';
+  if (!coTen && !coMa) return true;
+  if (coMa && +ct.ma_cap_do_mat !== 1) return true;
+  return laMat(ct.ten_cap_do_mat);
+}
 const loiPhien = e => /NOT_READY|NOT_LOGGED_IN|phiên|CHUA_DANG_NHAP/i.test(String(e && e.message || e));
 
 /** Tệp do quetvanban đã lưu: <thư mục>\<Loại>\<số>_<ddmmyyyy>[_vN].pdf — chỉ đọc. */
@@ -96,7 +108,7 @@ async function thuThap({ io, kho, taiKhoan, tuNgay, denNgay, gioiHan = {}, tamDi
         coQuan: c.ten_co_quan_ban_hanh || d.x.ten_co_quan_ban_hanh || (d.chieu === 'di' ? 'Sở Nông nghiệp và Môi trường' : ''),
         loai: c.ten_loai_van_ban || d.x.ten_loai_van_ban || '',
         trichYeu: c.trich_yeu || d.x.trich_yeu || '',
-        taiKhoan: [taiKhoan], doMat: laMat(c.ten_cap_do_mat), tep: [], trang: [], capNhat: new Date().toISOString()
+        taiKhoan: [taiKhoan], doMat: laMatCT(ct), tep: [], trang: [], capNhat: new Date().toISOString()
       };
       onTienDo({ buoc: 'van-ban', da: i, tong: ds.length, so: vb.soKyHieu });
       if (!vb.doMat) {
@@ -145,4 +157,4 @@ async function thuThap({ io, kho, taiKhoan, tuNgay, denNgay, gioiHan = {}, tamDi
   return kq;
 }
 
-module.exports = { thuThap, splitFiles, fileName, safeFileBase, fmtDate, laMat };
+module.exports = { thuThap, splitFiles, fileName, safeFileBase, fmtDate, laMat, laMatCT };

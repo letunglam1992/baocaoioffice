@@ -30,8 +30,8 @@ async function taoFakeIo({ hetPhienSau = Infinity, chuaDangNhap = false } = {}) 
   };
   const di = [{ ma_van_ban_di_kc: 6, ngay_di: '20/11/2026' }, { ma_van_ban_di_kc: 7, ngay_di: '05/11/2026' }];
   const ctDi = {
-    6: { so_ky_hieu: '1410/TTr-SNNMT', trich_yeu: 'Tờ trình xử lý dự án tồn đọng', ten_loai_van_ban: 'Tờ trình', ngay_ban_hanh: '20/11/2026', file_van_ban: 'f/6__1410-TTr-SNNMT.pdf' },
-    7: { so_ky_hieu: '88/CV-SNNMT', trich_yeu: 'Công văn báo cáo kết quả', ten_loai_van_ban: 'Công văn', ngay_ban_hanh: '05/11/2026', file_van_ban: 'f/7__88-CV-SNNMT.pdf' }
+    6: { so_ky_hieu: '1410/TTr-SNNMT', trich_yeu: 'Tờ trình xử lý dự án tồn đọng', ten_loai_van_ban: 'Tờ trình', ngay_ban_hanh: '20/11/2026', ten_cap_do_mat: 'Bình thường', file_van_ban: 'f/6__1410-TTr-SNNMT.pdf' },
+    7: { so_ky_hieu: '88/CV-SNNMT', trich_yeu: 'Công văn báo cáo kết quả', ten_loai_van_ban: 'Công văn', ngay_ban_hanh: '05/11/2026', ma_cap_do_mat: 1, file_van_ban: 'f/7__88-CV-SNNMT.pdf' }
   };
   const io = {
     goi: [], taiVe: [],
