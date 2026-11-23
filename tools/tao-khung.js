@@ -44,14 +44,25 @@ async function taoKhung(buf) {
     ...els.slice((iNN >= 0 ? iNN : iKT) + 1).map(e => e.name === 'w:p' && !runText(e.xml).trim() ? e.xml : '')
   ];
   const zip = await JSZip.loadAsync(buf);
-  zip.file('word/document.xml', (truoc + parts.join('') + sect + sau).replace(/<w:footnoteReference[^>]*\/>/g, ''));
+  const docMoi = (truoc + parts.join('') + sect + sau).replace(/<w:footnoteReference[^>]*\/>/g, '');
+  zip.file('word/document.xml', docMoi);
+  // bỏ liên kết (hyperlink) không còn được dùng — báo cáo gốc có thể chứa đường dẫn tới văn bản iOffice thật
+  const rels = zip.file('word/_rels/document.xml.rels');
+  if (rels) {
+    const x = await rels.async('string');
+    zip.file('word/_rels/document.xml.rels', x.replace(/<Relationship\b[^>]*\/>/g, r => {
+      const id = (r.match(/\bId="([^"]+)"/) || [])[1];
+      return /\/hyperlink"/.test(r) && !docMoi.includes(`r:id="${id}"`) ? '' : r;
+    }));
+  }
   const fn = zip.file('word/footnotes.xml');
   if (fn) {
     const x = await fn.async('string');
     zip.file('word/footnotes.xml', x.replace(/<w:footnote\b(?![^>]*w:type="(?:separator|continuationSeparator|continuationNotice)")[\s\S]*?<\/w:footnote>/g, ''));
   }
   const core = zip.file('docProps/core.xml');
-  if (core) zip.file('docProps/core.xml', (await core.async('string')).replace(/(<(dc:creator|cp:lastModifiedBy|dc:title|dc:subject|cp:keywords|dc:description)[^>]*>)[\s\S]*?(<\/\2>)/g, '$1$3'));
+  if (core) zip.file('docProps/core.xml', (await core.async('string')).replace(/(<(dc:creator|cp:lastModifiedBy|dc:title|dc:subject|cp:keywords|dc:description)[^>]*>)[\s\S]*?(<\/\2>)/g, '$1$3')
+    .replace(/<cp:revision>[^<]*<\/cp:revision>/g, '<cp:revision>1</cp:revision>').replace(/<cp:lastPrinted>[^<]*<\/cp:lastPrinted>/g, ''));
   return zip.generateAsync({ type: 'nodebuffer', compression: 'DEFLATE' });
 }
 
