@@ -94,7 +94,9 @@ function danhMucVanBan(dc, kho, { tuNgay, denNgay, coQuan } = {}) {
   if (!goc.length) return [];
   const a = parseNgay(tuNgay), b = parseNgay(denNgay);
   const out = [];
-  for (const id of kho.meta.keys()) {
+  const cacNam = new Set(kho.cacNam(tuNgay, denNgay));
+  for (const [id, meta] of kho.meta) {
+    if (meta.doMat || !cacNam.has(kho.namCua.get(id))) continue; // chỉ nạp chữ của các năm trong kỳ báo cáo
     const v = kho.get(id);
     if (v.doMat || goc.includes(kd(v.soKyHieu))) continue;
     const n = parseNgay(v.ngayBanHanh);

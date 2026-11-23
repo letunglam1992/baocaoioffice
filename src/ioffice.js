@@ -60,14 +60,24 @@ function pageBridge() {
         } catch (e) { clearTimeout(timer); reject(e); }
       });
     },
-    async file(path, name) {
+    async file(path, name, maxMB) {
       const i = inj(); if (!i) throw new Error('NOT_READY');
       const FM = i.get('$fileManager');
       const url = FM.generateAPIViewFile({ name: name || 'file.pdf', path, type: 'view' }).replace('#toolbar=1', '');
-      const r = await fetch(url);
-      if (!r.ok) throw new Error('HTTP ' + r.status);
-      const buf = new Uint8Array(await r.arrayBuffer());
-      if (buf.length > 80 * 1024 * 1024) throw new Error('File quá lớn');
+      const gioiHan = (maxMB || 30) * 1024 * 1024;
+      const ac = new AbortController();
+      const hen = setTimeout(() => ac.abort(), 150000);
+      try {
+        const r = await fetch(url, { signal: ac.signal });
+        if (!r.ok) throw new Error('HTTP ' + r.status);
+        const len = +r.headers.get('content-length') || 0;
+        if (len > gioiHan) { ac.abort(); throw new Error('QUA_LON ' + Math.round(len / 1048576) + ' MB'); }
+        var buf = new Uint8Array(await r.arrayBuffer());
+      } catch (e) {
+        if (ac.signal.aborted && !/QUA_LON/.test(e.message)) throw new Error('TIMEOUT tải tệp');
+        throw e;
+      } finally { clearTimeout(hen); }
+      if (buf.length > gioiHan) throw new Error('QUA_LON ' + Math.round(buf.length / 1048576) + ' MB');
       let bin = '';
       for (let k = 0; k < buf.length; k += 0x8000) bin += String.fromCharCode.apply(null, buf.subarray(k, k + 0x8000));
       return { b64: btoa(bin), type: r.headers.get('content-type') || '' };
@@ -307,11 +317,11 @@ class IOffice {
     return Array.isArray(r) ? r : ((r && r.data) || []);
   }
 
-  async downloadFile(path, name) {
+  async downloadFile(path, name, { maxMB } = {}) {
     await this.throttle();
     this.callCount = (this.callCount || 0) + 1;
     await this.exec(`(${pageBridge.toString()})()`);
-    const r = await this.exec(`window.__iosync.file(${JSON.stringify(path)}, ${JSON.stringify(name || 'file.pdf')})`, 180000);
+    const r = await this.exec(`window.__iosync.file(${JSON.stringify(path)}, ${JSON.stringify(name || 'file.pdf')}, ${Number(maxMB) || 30})`, 180000);
     const buf = Buffer.from(r.b64, 'base64');
     kiemTraNoiDung(buf, name);
     return buf;

@@ -25,7 +25,7 @@ class DieuPhoi {
     this.dangChay = true; this.yeuCauDung = false;
     const S = this.caiDat();
     const theoTaiKhoan = {};
-    let coLoi = false;
+    let coLoi = false, conViec = false;
     try {
       for (const [id, tk] of this.dsTaiKhoan()) {
         if (this.yeuCauDung) break;
@@ -35,7 +35,7 @@ class DieuPhoi {
         try {
           r = await this.thuThap({
             io: this.taoIo(id), kho: this.kho, taiKhoan: id, ...kl,
-            gioiHan: { maxCalls: S.maxCalls, maxFiles: S.maxFiles }, tamDir: this.tamDir,
+            gioiHan: { maxCalls: S.maxCalls, maxFiles: S.maxFiles, maxMB: S.maxMB }, tamDir: this.tamDir,
             thuMucQuetVanBan: S.thuMucQuetVanBan, giuTep: (S.giuTep && S.giuTep.loai && S.giuTep.loai.length) ? S.giuTep : null,
             nenDung: () => this.yeuCauDung, onTienDo: e => this.onTienDo({ ...e, taiKhoan: tk.ten || id }), log: this.log
           });
@@ -43,8 +43,9 @@ class DieuPhoi {
           r = { ok: false, loi: [{ so: '', msg: String(e.message || e) }] };
         }
         theoTaiKhoan[id] = r;
+        if (r.ok && r.hetGioiHan && !r.dung) conViec = true;
         tk.lastRunAt = t;
-        const msg = r.loi && r.loi[0] && r.loi[0].msg;
+        const msg = r.loi && r.loi.length ? r.loi[r.loi.length - 1].msg : '';
         // còn văn bản/tệp lỗi → giữ mốc cũ để lượt sau liệt kê lại và thử lại (văn bản đã xong được bỏ qua nhanh)
         if (r.ok && !r.hetGioiHan && !r.dung && !(r.loi && r.loi.length) && !r.loiTep) { tk.lastOkAt = kl.denNgay; tk.lastFailAt = null; tk.loi = null; }
         else if (!r.ok) {
@@ -57,6 +58,8 @@ class DieuPhoi {
     } finally {
       this.store.data.lastRunAt = this.now();
       this.store.data.lastFailAt = coLoi ? this.now() : null;
+      // còn văn bản chưa lấy (chạm giới hạn lượt) và người dùng không bấm Dừng → hẹn lượt tiếp
+      this.store.data.tiepTucAt = conViec && !this.yeuCauDung ? this.now() + (S.quetTiepPhut || 15) * 60000 : null;
       this.store.save();
       this.dangChay = false;
     }
@@ -100,6 +103,12 @@ class DieuPhoi {
   async layTheoSo(soKyHieu) {
     const co = this.kho.timTheoSo(soKyHieu);
     if (co.length) return co;
+    if (this.dangChay) throw new Error('Đang quét nền — chờ lượt quét xong hoặc bấm Dừng rồi thử lại.');
+    this.dangChay = true;
+    try { return await this.layTheoSoNoi(soKyHieu); } finally { this.dangChay = false; }
+  }
+
+  async layTheoSoNoi(soKyHieu) {
     const q = chuanSo(soKyHieu);
     const S = this.caiDat();
     const khop = rows => (rows || []).filter(x => chuanSo(x.so_ky_hieu) === q);

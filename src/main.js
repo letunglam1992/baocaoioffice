@@ -2,7 +2,7 @@
 /** Vỏ Electron: một phiên bản, khay hệ thống, tự khởi động, lịch quét nền, OCR lúc rảnh, IPC cho giao diện. */
 const path = require('path');
 const fs = require('fs');
-const { app, BrowserWindow, Notification, shell, nativeImage, dialog, ipcMain, powerMonitor } = require('electron');
+const { app, BrowserWindow, Notification, shell, nativeImage, dialog, ipcMain, powerMonitor, session } = require('electron');
 const { IOffice, partitionFor } = require('./ioffice');
 const { cleanUserAgent } = require('./useragent');
 const { Store } = require('./store');
@@ -65,9 +65,21 @@ function createMainWindow() {
 function showMain() { mainWin.show(); mainWin.focus(); push(); }
 
 async function chayLuot(lyDo) {
-  const r = await dp.chayLuot({ lyDo });
-  push();
-  return r;
+  try { return await dp.chayLuot({ lyDo }); } catch (e) { log('error', `Lượt quét: ${e.message}`); return null; } finally { store.save(); push(); }
+}
+
+/** Đẩy trạng thái lên giao diện trong lúc quét, tối đa 1 lần / 3 giây (số văn bản trong kho tăng dần). */
+let lanDay = 0;
+function dayThuaThot() { const t = Date.now(); if (t - lanDay >= 3000) { lanDay = t; push(); } }
+
+/** Cách lưu B: xóa tệp tạm cũ (vd tệp mở xem văn bản gốc) sau 2 giờ, không chờ tới lần khởi động sau. */
+function donTamCu(maxMs = 2 * 3600 * 1000) {
+  try {
+    for (const n of fs.readdirSync(tamDir())) {
+      const f = path.join(tamDir(), n);
+      try { if (Date.now() - fs.statSync(f).mtimeMs > maxMs) fs.unlinkSync(f); } catch { /* đang mở */ }
+    }
+  } catch { /* chưa có thư mục */ }
 }
 
 function hen() {
@@ -75,8 +87,9 @@ function hen() {
     try {
       const S = store.data.caiDat;
       const now = Date.now();
+      donTamCu();
       if (!dp.dangChay && Object.keys(store.data.taiKhoan).length && buKhiMoMay(startedAt, now, S.buSauPhut) &&
-        denHan({ lich: S.lich, lastRunAt: store.data.lastRunAt, lastFailAt: store.data.lastFailAt, thuLaiPhut: S.thuLaiPhut, now })) {
+        denHan({ lich: S.lich, lastRunAt: store.data.lastRunAt, lastFailAt: store.data.lastFailAt, tiepTucAt: store.data.tiepTucAt, thuLaiPhut: S.thuLaiPhut, now })) {
         await chayLuot(store.data.lastRunAt ? 'lich' : 'dau');
       } else if (!dp.dangChay && S.ocrLucRanh && powerMonitor.getSystemIdleTime() >= 300) {
         const n = await dp.ocrLucRanh({ gioiHanTrang: 10, soTep: 2 });
@@ -107,14 +120,21 @@ function dangKyIpc() {
     while (store.data.taiKhoan[id]) id += '-2';
     store.data.taiKhoan[id] = { ten: t }; store.save(); return id;
   });
-  h('taiKhoan.xoa', id => { delete store.data.taiKhoan[id]; const io = ios.get(id); if (io) { io.destroy(); ios.delete(id); } store.save(); });
+  h('taiKhoan.xoa', async id => {
+    if (dp.dangChay) throw new Error('Đang quét — bấm Dừng rồi xóa tài khoản.');
+    delete store.data.taiKhoan[id];
+    const io = ios.get(id); if (io) { io.quitting = true; io.destroy(); ios.delete(id); }
+    // xóa phiên đăng nhập đã lưu của tài khoản (cookie, bộ nhớ trang)
+    await session.fromPartition(partitionFor(id)).clearStorageData().catch(() => {});
+    store.save();
+  });
   h('taiKhoan.dangNhap', async id => {
     const who = await taoIo(id).interactiveLogin();
     if (who) { store.data.taiKhoan[id].hoTen = who.ho_ten; store.data.taiKhoan[id].loi = null; store.save(); }
     return !!who;
   });
-  h('quet.ngay', () => { chayLuot('tay'); return true; });
-  h('quet.dung', () => dp.dung());
+  h('quet.ngay', () => { if (dp.dangChay) throw new Error('Đang quét rồi.'); chayLuot('tay'); return true; });
+  h('quet.dung', () => { dp.dung(); log('info', 'Người dùng bấm Dừng — dừng sau tệp đang tải.'); return true; });
   h('kho.tim', (q, o) => kho.tim(q, o || {}).map(({ vb, score }) => ({ score, id: vb.id, chieu: vb.chieu, soKyHieu: vb.soKyHieu, ngay: vb.ngayBanHanh, coQuan: vb.coQuan, trichYeu: vb.trichYeu, taiKhoan: vb.taiKhoan })));
   h('kho.layTheoSo', so => dp.layTheoSo(so).then(ds => ds.map(v => ({ id: v.id, soKyHieu: v.soKyHieu, ngay: v.ngayBanHanh, trichYeu: v.trichYeu }))));
   h('kho.moGoc', async id => {
@@ -123,7 +143,7 @@ function dangKyIpc() {
     const tep = v.tep.find(t => /\.pdf$/i.test(t.name)) || v.tep[0];
     if (!tep) throw new Error('Văn bản không có tệp.');
     const buf = await taoIo(v.taiKhoan[0]).downloadFile(tep.path, tep.name);
-    const f = path.join(tamDir(), `${Date.now()}-${tep.name.replace(/[<>:"\/\\|?*\x00-\x1f]/g, '_')}`);
+    const f = path.join(tamDir(), `${Date.now()}-${(v.soKyHieu || 'van-ban').replace(/[^\p{L}\d-]+/gu, '-').slice(0, 40)}${path.extname(tep.name).slice(0, 6)}`);
     fs.writeFileSync(f, buf);
     await shell.openPath(f);
   });
@@ -160,10 +180,11 @@ function dangKyIpc() {
   h('baoCao.boVanAi', mucId => phien.datVanAi(mucId, null));
   h('baoCao.moThuMuc', p => shell.showItemInFolder(p));
   h('caiDat.ghi', patch => {
+    if (patch && 'khoDir' in patch && dp.dangChay) throw new Error('Đang quét — bấm Dừng rồi đổi thư mục kho.');
     const S = store.data.caiDat;
     for (const k of Object.keys(patch || {})) S[k] = (k === 'ai' || k === 'giuTep') ? { ...S[k], ...patch[k] } : patch[k];
     store.save(); dongBoKhoiDong();
-    if ('khoDir' in (patch || {})) kho = dp.kho = phien.kho = Kho.load(khoDir());
+    if ('khoDir' in (patch || {})) { kho.save(); kho = dp.kho = phien.kho = Kho.load(khoDir()); }
     return S;
   });
   h('caiDat.chonThuMuc', async () => { const r = await dialog.showOpenDialog(mainWin, { properties: ['openDirectory', 'createDirectory'] }); return r.canceled ? null : r.filePaths[0]; });
@@ -206,7 +227,7 @@ app.whenReady().then(async () => {
     store, kho, taoIo, log, tamDir: tamDir(), caiDat: () => store.data.caiDat,
     thongBao: m => notify('Tổng hợp báo cáo iOffice', m),
     ocrFn: (buf, o) => pdf.readPdf(buf, o),
-    onTienDo: p => { if (mainWin && !mainWin.isDestroyed()) mainWin.webContents.send('tienDo', p); }
+    onTienDo: p => { if (mainWin && !mainWin.isDestroyed()) { mainWin.webContents.send('tienDo', p); dayThuaThot(); } }
   });
   phien = new PhienBaoCao({ store, kho });
   dangKyIpc();

@@ -76,8 +76,8 @@ test('đánh số lại liên tục khi có mục tắt; mục cấp 3 thành a)
 
 test('trích đoạn có nguồn, ký tự đặc biệt giữ nguyên, bỏ đoạn không chọn', async () => {
   const { texts } = await xuat();
-  assert.ok(texts.includes('- Đã bàn giao 12,5 ha cho 3 dự án. (1410/TTr-SNNMT ngày 20/11/2026, tr. 1)'));
-  assert.ok(texts.includes('- A & B <c> "d" (1410/TTr-SNNMT ngày 20/11/2026, tr. 1)'));
+  assert.ok(texts.includes('- Đã bàn giao 12,5 ha cho 3 dự án. (Văn bản số 1410/TTr-SNNMT, ngày 20/11/2026, tr. 1)'));
+  assert.ok(texts.includes('- A & B <c> "d" (Văn bản số 1410/TTr-SNNMT, ngày 20/11/2026, tr. 1)'));
   assert.ok(!texts.some(t => /Đoạn bỏ chọn/.test(t)));
 });
 
@@ -155,4 +155,9 @@ test('đề cương không có cấp La Mã: nhãn theo độ sâu của cây', 
   assert.ok(texts.includes('I. Mục A'), texts.join('|'));
   assert.ok(texts.includes('1. Con của A'));
   assert.ok(texts.includes('II. Mục B'));
+});
+
+test('escXml bỏ ký tự không hợp lệ trong XML (U+FFFE, U+FFFF, surrogate lẻ)', () => {
+  const { escXml } = require('../src/xuatword');
+  assert.strictEqual(escXml('a￿b￾c\uD800d\uDC00e😀'), 'abcde😀');
 });

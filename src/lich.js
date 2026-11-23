@@ -21,7 +21,8 @@ function cacMoc(lich, now) {
   return out.filter(t => t <= now);
 }
 
-function denHan({ lich, lastRunAt, lastFailAt, thuLaiPhut = 30, now = Date.now() }) {
+function denHan({ lich, lastRunAt, lastFailAt, tiepTucAt, thuLaiPhut = 30, now = Date.now() }) {
+  if (tiepTucAt && now >= tiepTucAt) return true; // lượt trước chạm giới hạn → làm tiếp
   if (lastFailAt && now - lastFailAt >= thuLaiPhut * 60000) return true;
   if (!lastRunAt) return true;
   return cacMoc(lich, now).some(t => t > lastRunAt);

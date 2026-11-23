@@ -130,3 +130,32 @@ test('OCR: lỗi đọc nội dung thì đánh dấu đã xử lý', async () =>
   await dp.ocrLucRanh({});
   assert.strictEqual(kho.get('den:5').tep[0].ocrDone, true);
 });
+
+test('chạm giới hạn lượt: hẹn lượt tiếp sau 15 phút; lượt đủ thì bỏ hẹn', async () => {
+  const { dp, store } = moiTruong(async () => ({ ok: true, hetGioiHan: true, dung: false, loi: [], loiTep: 0 }));
+  await dp.chayLuot({ lyDo: 'lich' });
+  assert.strictEqual(store.data.tiepTucAt, NOW + 15 * 60000);
+  const m2 = moiTruong(async () => ({ ok: true, hetGioiHan: false, dung: false, loi: [], loiTep: 0 }), { data: { tiepTucAt: 1 } });
+  await m2.dp.chayLuot({ lyDo: 'lich' });
+  assert.strictEqual(m2.store.data.tiepTucAt, null);
+});
+
+test('người dùng bấm Dừng thì không hẹn lượt tiếp', async () => {
+  const { dp, store } = moiTruong(async () => ({ ok: true, hetGioiHan: false, dung: true, loi: [], loiTep: 0 }));
+  await dp.chayLuot({ lyDo: 'tay' });
+  assert.strictEqual(store.data.tiepTucAt, null);
+});
+
+test('layTheoSo không chạy chồng lên lượt quét đang chạy', async () => {
+  let mo;
+  const { dp } = moiTruong(() => new Promise(r => { mo = () => r({ ok: true, loi: [] }); }));
+  const p1 = dp.chayLuot({ lyDo: 'tay' });
+  await assert.rejects(dp.layTheoSo('999/X'), /đang quét/i);
+  mo(); await new Promise(r => setTimeout(r, 5)); mo(); await p1;
+});
+
+test('tình trạng lỗi của tài khoản là lỗi làm dừng lượt (lỗi cuối)', async () => {
+  const { dp, store } = moiTruong(async () => ({ ok: false, loi: [{ msg: 'lỗi tệp 1' }, { msg: 'NOT_READY' }] }));
+  await dp.chayLuot({ lyDo: 'lich' });
+  assert.strictEqual(store.data.taiKhoan.a.loi, 'NOT_READY');
+});

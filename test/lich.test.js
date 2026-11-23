@@ -41,3 +41,9 @@ test('bù khi mở máy sau 5 phút', () => {
   assert.strictEqual(buKhiMoMay(t0, t0 + 4 * 60000, 5), false);
   assert.strictEqual(buKhiMoMay(t0, t0 + 5 * 60000, 5), true);
 });
+
+test('đến giờ lượt tiếp (tiepTucAt) thì chạy dù chưa tới giờ lịch', () => {
+  const now = vn(23, 11, 2026, 14, 0);
+  assert.strictEqual(denHan({ ...base, lastRunAt: vn(23, 11, 2026, 13, 0), tiepTucAt: now - 1, now }), true);
+  assert.strictEqual(denHan({ ...base, lastRunAt: vn(23, 11, 2026, 13, 0), tiepTucAt: now + 60000, now }), false);
+});

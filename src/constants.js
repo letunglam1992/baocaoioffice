@@ -7,6 +7,8 @@ const DEFAULTS = Object.freeze({
   luiNgay: 3,
   buSauPhut: 5,
   thuLaiPhut: 30,
+  quetTiepPhut: 15,
+  maxMB: 30,
   tuNgayDau: '01/01/2025',
   maxCalls: 300,
   maxFiles: 100,

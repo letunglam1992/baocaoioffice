@@ -80,8 +80,12 @@ test('dùng tệp quetvanban có sẵn, không tải, không xóa', async () => 
 });
 
 test('dừng giữa lượt', async () => {
-  let n = 0;
-  const { r } = await chay({ nenDung: () => ++n > 2 });
+  const io = await taoFakeIo();
+  let vb = 0;
+  const goc = io.chiTietVanBanDi.bind(io), goc2 = io.chiTiet.bind(io);
+  io.chiTietVanBanDi = async m => { vb++; return goc(m); };
+  io.chiTiet = async (m, x) => { vb++; return goc2(m, x); };
+  const { r } = await chay({ io, nenDung: () => vb >= 2 });
   assert.strictEqual(r.dung, true);
   assert.strictEqual(r.moi, 2);
 });
@@ -131,8 +135,83 @@ test('đếm tệp tải lỗi', async () => {
   assert.strictEqual(r.ok, true);
 });
 
-test('quá thời gian chờ iOffice được coi là lỗi phiên (dừng tài khoản này)', () => {
+test('lỗi phiên rõ ràng; TIMEOUT phải kiểm tra lại phiên mới kết luận', () => {
   const { loiPhien } = require('../src/thuthap');
-  assert.strictEqual(loiPhien(new Error('TIMEOUT /api/van-ban-den/van-ban-den-chi-tiet')), true);
+  assert.strictEqual(loiPhien(new Error('NOT_READY')), true);
+  assert.strictEqual(loiPhien(new Error('TIMEOUT exec')), false);
   assert.strictEqual(loiPhien(new Error('404')), false);
+});
+
+// ---- 0.1.1: kẹt ở văn bản có tệp lớn / quá thời gian ----
+async function ioLoiTep(loi, { conPhien = true } = {}) {
+  const io = await taoFakeIo();
+  const goc = io.downloadFile.bind(io);
+  io.whoAmI = async () => (conPhien ? { ma_ctcb: 1 } : null);
+  io.downloadFile = async (p, n) => { if (p === 'f/6__1410-TTr-SNNMT.pdf') { io.taiVe.push(p); throw new Error(loi); } return goc(p, n); };
+  io.dangNhapLaiSau = () => {};
+  return io;
+}
+
+test('tải một tệp quá thời gian nhưng phiên vẫn còn: đi tiếp văn bản khác', async () => {
+  const io = await ioLoiTep('TIMEOUT exec');
+  const { r, kho } = await chay({ io });
+  assert.strictEqual(r.ok, true);
+  assert.strictEqual(r.moi, 6);
+  assert.strictEqual(r.loiTep, 1);
+  assert.strictEqual(kho.get('di:6').tep[0].loiTai, true);
+});
+
+test('quá thời gian và mất phiên: dừng tài khoản', async () => {
+  const io = await ioLoiTep('TIMEOUT exec', { conPhien: false });
+  const { r } = await chay({ io });
+  assert.strictEqual(r.ok, false);
+});
+
+test('tệp quá lớn: bỏ qua, không thử lại', async () => {
+  const io = await ioLoiTep('QUA_LON 95 MB');
+  const kho = new Kho(tmp());
+  const { r } = await chay({ io, kho });
+  const t = kho.get('di:6').tep[0];
+  assert.strictEqual(t.loiTai, undefined);
+  assert.strictEqual(t.boQua, 'qua-lon');
+  assert.strictEqual(r.loiTep, 0);
+  io.taiVe.length = 0;
+  await chay({ io, kho });
+  assert.ok(!io.taiVe.includes('f/6__1410-TTr-SNNMT.pdf'));
+});
+
+test('tệp lỗi chỉ thử lại tối đa 3 lượt; văn bản mới được xử lý trước văn bản thử lại', async () => {
+  const io = await ioLoiTep('mạng chập chờn');
+  const kho = new Kho(tmp());
+  for (let k = 0; k < 3; k++) await chay({ io, kho });
+  assert.strictEqual(kho.get('di:6').tep[0].thu, 3);
+  io.taiVe.length = 0;
+  await chay({ io, kho });
+  assert.strictEqual(io.taiVe.length, 0, 'sau 3 lần không tải lại');
+});
+
+test('thử lại chỉ tải tệp lỗi, giữ chữ của tệp đã đọc', async () => {
+  const io = await taoFakeIo();
+  const goc = io.downloadFile.bind(io);
+  let hong = true;
+  io.downloadFile = async (p, n) => { if (hong && p === 'f/2__phuluc.docx') { io.taiVe.push(p); throw new Error('mạng'); } return goc(p, n); };
+  const kho = new Kho(tmp());
+  await chay({ io, kho });
+  hong = false; io.taiVe.length = 0;
+  await chay({ io, kho });
+  assert.deepStrictEqual(io.taiVe, ['f/2__phuluc.docx']);
+  const v = kho.get('den:2');
+  assert.ok(v.trang.some(t => /7 dự án/.test(t.text)));
+  assert.ok(v.trang.some(t => /12,5 ha/.test(t.text)));
+});
+
+test('dừng được giữa các tệp của một văn bản', async () => {
+  let n = 0;
+  const io = await taoFakeIo();
+  const goc = io.downloadFile.bind(io);
+  io.downloadFile = async (p, nm) => { n++; return goc(p, nm); };
+  const { r, kho } = await chay({ io, nenDung: () => n >= 1 });
+  assert.strictEqual(r.dung, true);
+  assert.strictEqual(n, 1);
+  assert.ok(kho.thongKe().tong <= 1);
 });

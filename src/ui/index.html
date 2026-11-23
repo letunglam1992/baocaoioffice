@@ -8,7 +8,7 @@
 </head>
 <body>
 <header class="top">
-  <div class="brand"><div class="logo">B</div><div><div class="title">Tổng hợp báo cáo iOffice</div><div class="sub" id="trangThaiNen">Đang tải…</div></div></div>
+  <div class="brand"><img class="logo" src="icon.png" alt=""><div><div class="title">Tổng hợp báo cáo iOffice</div><div class="sub" id="trangThaiNen">Đang tải…</div></div></div>
   <div class="actions">
     <button type="button" class="btn ghost" id="btnQuet">Quét ngay</button>
     <button type="button" class="btn ghost" id="btnDung" hidden>Dừng</button>
@@ -126,7 +126,13 @@
 
   <section class="panel" id="nhatky">
     <div class="card"><h2>Giới thiệu</h2><p>Tổng hợp báo cáo iOffice — phiên bản <b id="phienBan"></b>. Chỉ đọc iOffice; dữ liệu nằm trên máy này.</p>
-      <section id="whatsNew"><h3>Có gì mới — 0.1.0</h3><ul>
+      <section id="whatsNew"><h3>Có gì mới — 0.1.1</h3><ul>
+        <li>Sửa lỗi quét chậm, «kẹt» ở văn bản có tệp lớn: tệp quá thời gian hoặc lớn hơn 30 MB được bỏ qua/thử lại sau, không dừng cả lượt; văn bản mới được xử lý trước.</li>
+        <li>Nút «Dừng» có tác dụng ngay sau tệp đang tải; dòng tiến độ ghi rõ tệp đang tải; số văn bản trong kho cập nhật trong lúc quét.</li>
+        <li>Lượt quét chạm giới hạn thì tự chạy tiếp sau 15 phút cho tới khi lấy đủ văn bản.</li>
+        <li>Biểu tượng và màu mới (xanh ngọc) để không nhầm với phần mềm quét văn bản.</li>
+        <li>Sửa lỗi nhỏ: xóa tài khoản xóa luôn phiên đăng nhập; dọn tệp tạm sau 2 giờ; ghi nguồn «(Văn bản số …, ngày …)»; ký tự lạ không làm hỏng tệp Word.</li>
+      </ul><h3>0.1.0</h3><ul>
         <li>Nhiều tài khoản iOffice, quét nền văn bản đến/đi vào kho cục bộ, tìm toàn văn có dấu/không dấu.</li>
         <li>Nạp đề cương Word hoặc gõ chủ đề → trích đoạn có số liệu kèm nguồn cho từng mục.</li>
         <li>Xuất báo cáo Word theo khung của Sở, tự điền phụ lục danh mục văn bản, kèm tệp dữ liệu thô.</li>

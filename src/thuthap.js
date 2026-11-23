@@ -36,7 +36,8 @@ function laMatCT(ct) {
   if (coMa && +ct.ma_cap_do_mat !== 1) return true;
   return laMat(ct.ten_cap_do_mat);
 }
-const loiPhien = e => /NOT_READY|NOT_LOGGED_IN|phiên|CHUA_DANG_NHAP|TIMEOUT/i.test(String(e && e.message || e));
+const loiPhien = e => /NOT_READY|NOT_LOGGED_IN|phiên|CHUA_DANG_NHAP/i.test(String(e && e.message || e));
+const MAX_THU = 3; // số lượt thử lại tối đa cho một tệp tải lỗi
 
 /** Tệp do quetvanban đã lưu: <thư mục>\<Loại>\<số>_<ddmmyyyy>[_vN].pdf — chỉ đọc. */
 function timTepQuetVanBan(root, vb) {
@@ -49,9 +50,12 @@ function timTepQuetVanBan(root, vb) {
   } catch { return null; }
 }
 
-function giuTepGoc(khoDir, name, buf, { tranMB }) {
+function giuTepGoc(khoDir, tenGoc, buf, { tranMB }) {
   const dir = path.join(khoDir, 'giu-tep');
   fs.mkdirSync(dir, { recursive: true });
+  // tên an toàn trên Windows: bỏ ký tự cấm và dấu gạch chéo, giới hạn độ dài
+  const ext = path.extname(tenGoc).slice(0, 6);
+  const name = tenGoc.slice(0, tenGoc.length - ext.length).replace(/[<>:"\/\\|?*\x00-\x1f]+/g, '-').slice(0, 100) + ext;
   let p = path.join(dir, name), v = 2;
   while (fs.existsSync(p)) { const e = path.extname(name); p = path.join(dir, path.basename(name, e) + `_v${v++}` + e); }
   fs.writeFileSync(p, buf, { flag: 'wx' });
@@ -87,10 +91,19 @@ async function thuThap({ io, kho, taiKhoan, tuNgay, denNgay, gioiHan = {}, tamDi
   } catch (e) {
     return { ...kq, ok: false, loi: [{ so: '', msg: String(e.message || e) }] };
   }
-  // mới nhất trước: lượt đầu kéo lùi dài vẫn có ngay văn bản gần đây
-  ds.sort((a, b) => b.ngay - a.ngay);
-  const daXong = id => { const v = kho.get(id); return v && (v.doMat || (v.tep || []).every(t => t.method && !t.loiTai)); };
+  // văn bản CHƯA có trong kho trước (mới nhất trước), văn bản cần thử lại tệp lỗi sau — một văn bản lỗi không chặn cả lượt
+  const tepXong = t => t.method && (!t.loiTai || (t.thu || 0) >= MAX_THU);
+  const daXong = id => { const v = kho.get(id); return v && (v.doMat || (v.tep || []).every(tepXong)); };
   ds = ds.filter(d => !daXong(d.id));
+  ds.sort((a, b) => (kho.has(a.id) - kho.has(b.id)) || (b.ngay - a.ngay));
+
+  /** Lỗi có phải do mất phiên? TIMEOUT thì hỏi lại trang: còn đăng nhập → chỉ là lỗi của tệp/văn bản này. */
+  const matPhien = async e => {
+    if (loiPhien(e)) return true;
+    if (!/TIMEOUT/.test(String(e && e.message || e))) return false;
+    const who = await Promise.resolve(io.whoAmI(8000)).catch(() => null);
+    return !who;
+  };
 
   let i = 0;
   for (const d of ds) {
@@ -101,6 +114,7 @@ async function thuThap({ io, kho, taiKhoan, tuNgay, denNgay, gioiHan = {}, tamDi
       dem();
       const ct = d.chieu === 'den' ? await io.chiTiet(d.x.ma_van_ban_den_kc, d.x.ma_xu_ly_den) : await io.chiTietVanBanDi(d.x.ma_van_ban_di_kc);
       const c = ct || {};
+      const cu = kho.get(d.id);
       const vb = {
         id: d.id, chieu: d.chieu,
         soKyHieu: c.so_ky_hieu || d.x.so_ky_hieu || '',
@@ -115,42 +129,60 @@ async function thuThap({ io, kho, taiKhoan, tuNgay, denNgay, gioiHan = {}, tamDi
         const soNum = (vb.soKyHieu.match(/\d+/) || [''])[0];
         const ban = timTepQuetVanBan(thuMucQuetVanBan, vb);
         let daDungBan = false;
-        for (const p of splitFiles(c.file_van_ban || d.x.file_van_ban || c.file_dinh_kem)) {
+        const dsTep = splitFiles(c.file_van_ban || d.x.file_van_ban || c.file_dinh_kem);
+        for (let ti = 0; ti < dsTep.length; ti++) {
+          const p = dsTep[ti];
           const name = fileName(p);
+          const idx = vb.tep.length;
+          // lượt trước đã đọc xong tệp này → giữ nguyên, không tải lại
+          const tCu = cu && (cu.tep || []).findIndex(t => t.path === p);
+          if (cu && tCu >= 0 && tepXong(cu.tep[tCu])) {
+            vb.tep.push(cu.tep[tCu]);
+            cu.trang.filter(t => t.tep === tCu).forEach(t => vb.trang.push({ ...t, tep: idx }));
+            continue;
+          }
+          const thuCu = cu && tCu >= 0 ? (cu.tep[tCu].thu || 0) : 0;
           const tep = { name, path: p, method: '', canOcr: false, ocrDone: false };
+          if (nenDung()) { kq.dung = true; tep.loiTai = true; tep.thu = thuCu; vb.tep.push(tep); continue; }
           let buf = null, tam = null;
+          const t0 = Date.now();
           try {
             if (ban && !daDungBan && /\.pdf$/i.test(name) && soNum && name.includes(soNum)) {
               buf = fs.readFileSync(ban); daDungBan = true; tep.nguon = 'quetvanban';
             } else if (/\.(pdf|docx?|xlsx)$/i.test(name)) {
-              if (het()) { kq.hetGioiHan = true; tep.loiTai = true; vb.tep.push(tep); continue; }
-              dem(); buf = await io.downloadFile(p, name); kq.tep++;
-              tam = path.join(tamDir, `${Date.now()}-${kq.tep}-${name.replace(/[<>:"\/\\|?*\x00-\x1f]/g, '_')}`);
+              if (het()) { kq.hetGioiHan = true; tep.loiTai = true; tep.thu = thuCu; vb.tep.push(tep); continue; }
+              onTienDo({ buoc: 'tep', da: i, tong: ds.length, so: vb.soKyHieu, tep: name, tepThu: ti + 1, tepTong: dsTep.length });
+              dem(); buf = await io.downloadFile(p, name, { maxMB: gioiHan.maxMB }); kq.tep++;
+              tam = path.join(tamDir, `${Date.now()}-${kq.tep}${path.extname(name).slice(0, 6)}`);
               fs.writeFileSync(tam, buf);
             }
             if (buf) {
               const r = await readAny(buf, name);
               tep.method = r.method; tep.canOcr = r.canOcr; if (r.error) tep.error = r.error;
-              r.pages.forEach((text, k) => { if (text && text.trim()) vb.trang.push({ tep: vb.tep.length, so: k + 1, text }); });
+              r.pages.forEach((text, k) => { if (text && text.trim()) vb.trang.push({ tep: idx, so: k + 1, text }); });
               if (giuTep && (giuTep.loai || []).includes(vb.loai) && tep.nguon !== 'quetvanban') giuTepGoc(kho.dir, `${safeFileBase(vb.soKyHieu, vb.ngayBanHanh)}-${name}`, buf, giuTep);
+              const giay = (Date.now() - t0) / 1000;
+              if (giay >= 5) log('info', `${vb.soKyHieu}: tệp ${name} (${Math.round(buf.length / 1024)} KB) mất ${giay.toFixed(0)} giây.`);
             } else tep.method = 'none';
           } catch (e) {
-            if (loiPhien(e)) throw e;
-            tep.method = 'none'; tep.loiTai = true; tep.error = String(e.message || e).slice(0, 200);
-            kq.loiTep++;
+            if (await matPhien(e)) throw e;
+            const msg = String(e.message || e);
+            tep.method = 'none'; tep.error = msg.slice(0, 200);
+            if (/QUA_LON/.test(msg)) { tep.boQua = 'qua-lon'; log('info', `${vb.soKyHieu}: bỏ qua tệp ${name} — ${msg.replace('QUA_LON', 'quá lớn')}.`); }
+            else { tep.loiTai = true; tep.thu = thuCu + 1; kq.loiTep++; log('warn', `${vb.soKyHieu}: lỗi tải tệp ${name} (lần ${tep.thu}/${MAX_THU}): ${msg.slice(0, 120)}`); }
           } finally {
             if (tam) { try { fs.unlinkSync(tam); } catch { /* đã xóa */ } }
           }
           vb.tep.push(tep);
         }
       }
-      const cu = kho.has(vb.id);
       kho.upsert(vb);
       cu ? kq.capNhat++ : kq.moi++;
+      if (kq.dung) break;
     } catch (e) {
       kq.loi.push({ so: d.x.so_ky_hieu || d.id, msg: String(e.message || e).slice(0, 200) });
       log('warn', `Lỗi thu thập ${d.id}: ${e.message}`);
-      if (loiPhien(e)) { kq.ok = false; break; }
+      if (await matPhien(e)) { kq.ok = false; break; }
     }
     if (++i % 20 === 0) kho.save();
   }

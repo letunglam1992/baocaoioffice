@@ -8,7 +8,7 @@ const JSZip = require('jszip');
 const { topElements, runText } = require('./docread');
 const { chuanHoa } = require('./vntext');
 
-const escXml = s => String(s == null ? '' : s).replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f]/g, '')
+const escXml = s => String(s == null ? '' : s).replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f\uFFFE\uFFFF]|[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/g, '')
   .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 
 const LA_MA = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X', 'XI', 'XII', 'XIII', 'XIV', 'XV'];
@@ -102,7 +102,7 @@ function bangXml(rows, kieu, { dauDong = 1 } = {}) {
     rows.map((r, i) => tr(r, i < dauDong)).join('') + '</w:tbl>';
 }
 
-const nguon = t => `(${t.soKyHieu}${t.ngay ? ' ngày ' + t.ngay : ''}${t.trang ? ', tr. ' + t.trang : ''})`;
+const nguon = t => `(Văn bản số ${t.soKyHieu}${t.ngay ? ', ngày ' + t.ngay : ''}${t.trang ? ', tr. ' + t.trang : ''})`;
 
 function thanBaoCao(kieu, { dc, ketQua, vanBanAi = {}, danhMuc }) {
   const out = [];

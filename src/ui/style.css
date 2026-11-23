@@ -1,6 +1,6 @@
 :root {
-  --navy: #1F3864; --navy-2: #2d4d85; --ink: #1d2433; --muted: #667085; --line: #e3e7ee; --bg: #f6f7f9; --card: #fff;
-  --ok: #1a7f4b; --ok-bg: #e7f6ee; --warn: #b54708; --warn-bg: #fff4e5; --err: #b42318; --err-bg: #fdecea; --info-bg: #eef3fb;
+  --navy: #0B5F59; --navy-2: #0D8078; --ink: #1d2433; --muted: #667085; --line: #e3e7ee; --bg: #f6f7f9; --card: #fff;
+  --ok: #1a7f4b; --ok-bg: #e7f6ee; --warn: #b54708; --warn-bg: #fff4e5; --err: #b42318; --err-bg: #fdecea; --info-bg: #e8f4f3;
   font-family: "Segoe UI", Arial, sans-serif; font-size: 14px; color: var(--ink);
 }
 * { box-sizing: border-box; }
@@ -19,7 +19,7 @@ label.check { display: flex; align-items: center; gap: 8px; color: var(--ink); }
 
 .top { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 12px 20px; background: var(--navy); color: #fff; }
 .brand { display: flex; align-items: center; gap: 12px; }
-.logo { width: 36px; height: 36px; border-radius: 8px; background: #fff; color: var(--navy); display: grid; place-items: center; font-weight: 700; font-size: 20px; }
+.logo { width: 36px; height: 36px; border-radius: 8px; background: #fff; padding: 2px; }
 .title { font-size: 17px; font-weight: 600; }
 .sub { font-size: 12px; opacity: .85; }
 .actions { display: flex; gap: 8px; }

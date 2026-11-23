@@ -71,3 +71,9 @@ test('canOcr liệt kê tệp chờ OCR', () => {
   k.upsert(v);
   assert.deepStrictEqual(k.canOcr(5).map(x => [x.vb.id, x.tepIdx]), [['den:5', 0]]);
 });
+
+test('tìm theo số ký hiệu gõ chữ thường: văn bản đúng số đứng đầu', () => {
+  const k = new Kho(tmp()); mau(k);
+  assert.strictEqual(k.tim('131/kh-ubnd', {})[0].vb.id, 'den:1');
+  assert.strictEqual(k.tim('1410/ttr-snnmt', {})[0].vb.id, 'di:2');
+});
