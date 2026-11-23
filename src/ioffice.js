@@ -171,6 +171,23 @@ class IOffice {
     return null;
   }
 
+  /** Hiện cửa sổ iOffice (chế độ ghi nhận API: người dùng tự tra cứu). */
+  hienCuaSo() { const w = this.ensureWindow(); w.show(); w.focus(); }
+
+  /** Bật ghi nhận API trong trang (chỉ ghi tên/kiểu/cấu trúc, xem src/ghinhan.js). */
+  async batGhiNhan() {
+    const { ghiNhanBridge } = require('./ghinhan');
+    this.hienCuaSo();
+    return this.exec(`(${ghiNhanBridge.toString()})()`);
+  }
+
+  /** Lấy bản ghi đã làm sạch; dữ liệu thô không được lưu ở đâu. */
+  async layGhiNhan() {
+    const { lamSach, gopGhiNhan } = require('./ghinhan');
+    const raw = await this.exec('(window.__iosyncLog || []).splice(0)');
+    return gopGhiNhan((raw || []).map(lamSach));
+  }
+
   /** Mở trang chi tiết văn bản trong cửa sổ iOffice để người dùng xem. */
   showDocument(id, xld) {
     const w = this.ensureWindow();
